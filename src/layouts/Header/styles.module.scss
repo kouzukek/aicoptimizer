@@ -1,0 +1,66 @@
+@use "sass:map";
+@use "../../area_def.scss" as *;
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  column-gap: 1em;
+
+  background: var(--bg);
+
+  border-bottom: 2px solid var(--bg);
+
+  .title {
+    margin: 0;
+    --padding: 0.7rem clamp(1rem, calc(100lvw - 100svw), 2rem);
+    padding: var(--padding);
+    z-index: 30;
+
+    color: var(--title-color);
+
+    font-size: clamp(0.85rem, 2.1dvw, 1.05rem);
+    font-family: var(--font-title);
+    font-optical-sizing: auto;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    background: linear-gradient(
+      to left,
+      transparent 0,
+      rgba(from var(--bg) r g b / 80%) var(--padding)
+    );
+
+    &::before {
+      content: "// ";
+    }
+  }
+
+  .accent {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity var(--transition-duration);
+    mask-image: linear-gradient(to right, transparent 60%, black 100%);
+    background-size: contain;
+
+    @each $id, $def in $areas {
+      &[data-accent-layer="#{$id}"] {
+        background-color: oklch(from #{map.get($def, color)} l c h);
+        background-image: url("../../#{map.get($def, image)}");
+      }
+
+      :root:has([data-area="#{$id}"]) &[data-accent-layer="#{$id}"] {
+        opacity: 1;
+      }
+    }
+  }
+}

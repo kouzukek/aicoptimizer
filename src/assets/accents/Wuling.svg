@@ -1,0 +1,42 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  width="64"
+  height="64"
+  role="img"
+  aria-label="武陵"
+>
+
+  <!-- 撓る幹（曲線・傾き）／継ぎ目をまたぐ1本は左右に分けて配置 -->
+  <g fill="none" stroke="#000" stroke-linecap="butt">
+    <path d="M-2 62 Q1 38 5 16" stroke-width="5" />
+    <path d="M8 62  Q10 36 15 12" stroke-width="4" />
+    <path d="M20 62 Q20 42 17 24" stroke-width="5" />
+    <path d="M30 62 Q33 30 39 4" stroke-width="7" />
+    <path d="M44 62 Q44 44 41 28" stroke-width="4" />
+    <path d="M52 62 Q55 38 59 18" stroke-width="5" />
+    <path d="M62 62 Q65 38 69 16" stroke-width="5" />
+  </g>
+
+  <!-- 谷底（うねる稜線） -->
+  <path
+    fill="#000"
+    d="M0 54 C12 50 20 58 32 54 C44 50 52 58 64 54 L64 64 L0 64 Z"
+  />
+
+  <!-- 雲海（波打つ白帯＝そのままタイルの接続線） -->
+  <g fill="#fff">
+    <path
+      d="M0 34 C8 28 24 40 32 34 C40 28 56 40 64 34
+             L64 38 C56 44 40 32 32 38 C24 44 8 32 0 38 Z"
+    />
+    <path
+      d="M0 46 C8 50 24 42 32 46 C40 50 56 42 64 46
+             L64 48 C56 52 40 44 32 48 C24 52 8 44 0 48 Z"
+    />
+    <path
+      d="M0 58 C12 54 20 62 32 58 C44 54 52 62 64 58
+             L64 60 C52 64 44 56 32 60 C20 64 12 56 0 60 Z"
+    />
+  </g>
+</svg>

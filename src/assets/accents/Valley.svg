@@ -1,0 +1,140 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  width="64"
+  height="64"
+  shape-rendering="crispEdges"
+  role="img"
+  aria-label="四号谷地"
+>
+  <g fill="#000">
+    <!-- 継ぎ目をまたぐ高層棟 -->
+    <rect x="56" y="22" width="8" height="34" />
+    <rect x="0" y="22" width="5" height="34" />
+
+    <!-- 中層棟 -->
+    <rect x="7" y="46" width="8" height="10" />
+
+    <!-- 工場（櫛状の陸屋根） -->
+    <rect x="17" y="46" width="16" height="10" />
+    <rect x="18" y="43" width="3" height="3" />
+    <rect x="23" y="43" width="3" height="3" />
+    <rect x="28" y="43" width="3" height="3" />
+
+    <!-- 煙突 -->
+    <rect x="35" y="16" width="4" height="40" />
+    <rect x="34" y="16" width="6" height="2" />
+
+    <!-- 高層棟 -->
+    <rect x="41" y="26" width="9" height="30" />
+    <rect x="51" y="48" width="4" height="8" />
+
+    <!-- 地盤 -->
+    <rect x="0" y="56" width="64" height="8" />
+  </g>
+
+  <!-- 高架搬送路（全幅を貫く水平線） -->
+  <rect x="0" y="35" width="64" height="2" fill="#fff" />
+  <rect x="0" y="37" width="64" height="4" fill="#000" />
+  <rect x="0" y="41" width="64" height="2" fill="#fff" />
+
+  <g fill="#fff">
+    <!-- 搬送路の刻み（周期8px） -->
+    <rect x="5" y="37" width="2" height="4" /><rect
+      x="13"
+      y="37"
+      width="2"
+      height="4"
+    />
+    <rect x="21" y="37" width="2" height="4" /><rect
+      x="29"
+      y="37"
+      width="2"
+      height="4"
+    />
+    <rect x="37" y="37" width="2" height="4" /><rect
+      x="45"
+      y="37"
+      width="2"
+      height="4"
+    />
+    <rect x="53" y="37" width="2" height="4" /><rect
+      x="61"
+      y="37"
+      width="2"
+      height="4"
+    />
+
+    <!-- 継ぎ目の棟（左右で窓列が連続する） -->
+    <rect x="58" y="26" width="2" height="2" /><rect
+      x="62"
+      y="26"
+      width="2"
+      height="2"
+    /><rect x="2" y="26" width="2" height="2" />
+    <rect x="58" y="30" width="2" height="2" /><rect
+      x="62"
+      y="30"
+      width="2"
+      height="2"
+    /><rect x="2" y="30" width="2" height="2" />
+    <rect x="58" y="46" width="2" height="2" /><rect
+      x="62"
+      y="46"
+      width="2"
+      height="2"
+    /><rect x="2" y="46" width="2" height="2" />
+    <rect x="58" y="50" width="2" height="2" /><rect
+      x="62"
+      y="50"
+      width="2"
+      height="2"
+    /><rect x="2" y="50" width="2" height="2" />
+
+    <!-- 中層棟 -->
+    <rect x="9" y="48" width="2" height="2" /><rect
+      x="12"
+      y="48"
+      width="2"
+      height="2"
+    />
+    <rect x="9" y="52" width="2" height="2" /><rect
+      x="12"
+      y="52"
+      width="2"
+      height="2"
+    />
+
+    <!-- 工場 -->
+    <rect x="19" y="50" width="2" height="2" />
+    <rect x="23" y="50" width="2" height="2" />
+    <rect x="27" y="50" width="2" height="2" />
+
+    <!-- 煙突の帯 -->
+    <rect x="35" y="20" width="4" height="2" />
+    <rect x="35" y="25" width="4" height="2" />
+
+    <!-- 高層棟 -->
+    <rect x="43" y="30" width="2" height="2" /><rect
+      x="46"
+      y="30"
+      width="2"
+      height="2"
+    />
+    <rect x="43" y="46" width="2" height="2" /><rect
+      x="46"
+      y="46"
+      width="2"
+      height="2"
+    />
+    <rect x="43" y="50" width="2" height="2" /><rect
+      x="46"
+      y="50"
+      width="2"
+      height="2"
+    />
+
+    <!-- 地盤の抜き -->
+    <rect x="0" y="60" width="64" height="2" />
+  </g>
+</svg>

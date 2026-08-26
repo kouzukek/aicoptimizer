@@ -1,0 +1,45 @@
+.button {
+  background-color: yellow;
+  margin-block: 1em;
+  padding-inline: 4em;
+  font-family: var(--font-ui);
+  font-optical-sizing: auto;
+  font-weight: 900;
+  font-size: large;
+
+  border: 4px double black;
+
+  letter-spacing: 0.1em;
+}
+
+@property --status-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(70% 0 0);
+}
+
+.status {
+  display: inline-flex;
+  gap: 0.7em;
+  margin: 0.5em;
+  padding: 0.5em;
+  border: 1px solid black;
+
+  &[data-status="Optimal"] {
+    --status-color: oklch(70% 0.3 142.785);
+  }
+  &[data-status="Unoptimized"] {
+    --status-color: oklch(70% 0.3 92.233);
+  }
+  &[data-status="Error"] {
+    --status-color: oklch(70% 0.3 26.405);
+  }
+  &[data-status="Initialized"] {
+    --status-color: oklch(70% 0 0);
+  }
+  &::before {
+    content: "●";
+    color: var(--status-color);
+    transition: --status-color var(--transition-duration);
+  }
+}

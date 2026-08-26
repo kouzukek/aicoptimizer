@@ -1,0 +1,21 @@
+.grapharea {
+  & > * {
+    height: 80svh;
+    outline: 1px solid black;
+  }
+}
+
+.recipe_resources_stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  row-rule: 1px gray dashed;
+
+  & > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.2rem;
+    font-size: small;
+  }
+}

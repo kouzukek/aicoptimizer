@@ -1,0 +1,180 @@
+@use "./background.scss";
+@use "./area_def.scss" as *;
+@use "sass:map";
+
+@import url("https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Hanken+Grotesk:wght@900&family=Orbitron:wght@900&display=swap");
+
+@property --accent-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(from white l c h);
+}
+
+:root {
+  --bg: #ddd;
+
+  --title-color: #555;
+
+  --panel-background: rgba(from white r g b / 50%);
+
+  --table-head-background: rgba(from #ccc r g b / 60%);
+  --table-head-foreground: contrast-color(var(--table-head-background));
+  --table-body-background: rgba(from #ccc r g b / 60%);
+  --table-body-foreground: contrast-color(var(--table-body-background));
+
+  --font-header: "Black Ops One", system-ui, sans-serif;
+  --font-title: "Hanken Grotesk", system-ui, sans-serif;
+
+  --font-ui: "Orbitron", sans-serif;
+
+  @each $id, $def in $areas {
+    &:has([data-area="#{$id}"]) {
+      --accent-color: oklch(from #{map.get($def, color)} l c h);
+    }
+  }
+
+  --transition-duration: 300ms;
+  transition: --accent-color var(--transition-duration);
+}
+
+html,
+body {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.root {
+  isolation: isolate;
+
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+
+  font-size: 0.9rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  padding: 0;
+}
+
+h2 {
+  font-family: var(--font-header);
+  font-weight: 400;
+  background: linear-gradient(
+    to top,
+    var(--accent-color) 0px 2px,
+    transparent 2px 100%
+  );
+}
+
+table {
+  border-collapse: separate;
+  width: 100%;
+  table-layout: auto;
+
+  th,
+  td {
+    padding: 4px;
+  }
+
+  thead,
+  tfoot {
+    & th {
+      background-color: var(--table-head-background);
+      color: var(--table-head-foreground);
+      white-space: nowrap;
+    }
+  }
+  thead {
+    margin-bottom: 0.5em;
+
+    & th:first-child {
+      border-radius: 100dvh 0 0 100dvh;
+    }
+    & th:last-child {
+      border-radius: 0 100dvh 100dvh 0;
+    }
+  }
+
+  td {
+    background-color: var(--table-body-background);
+    color: var(--table-body-foreground);
+    border-radius: 0.2rem;
+  }
+
+  @mixin numeric-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  [data-type="price"]:is(th, td) {
+    @include numeric-cell;
+
+    &::before {
+      content: "@";
+      margin-right: 0.2rem;
+    }
+  }
+
+  [data-type="volume"]:is(th, td) {
+    @include numeric-cell;
+  }
+
+  [data-type="ratio"]:is(th, td) {
+    @include numeric-cell;
+
+    &::after {
+      content: "%";
+    }
+  }
+
+  [data-type="count"]:is(th, td) {
+    @include numeric-cell;
+  }
+
+  [data-type="money"]:is(th, td) {
+    @include numeric-cell;
+  }
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1000px;
+  border: 1px gray solid;
+  color: black;
+
+  background-color: white;
+
+  outline: solid oklch(from black l c h / 0%) 4px;
+  outline-offset: -3px;
+  transition-property: outline-color;
+  transition-duration: var(--transition-duration);
+
+  &:hover {
+    outline-offset: -3px;
+    outline: solid oklch(from black l c h / 40%) 4px;
+  }
+  &:active {
+    outline-offset: -3px;
+    outline: solid oklch(from black l c h / 60%) 4px;
+  }
+}

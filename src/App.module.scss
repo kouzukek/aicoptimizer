@@ -1,0 +1,128 @@
+.main {
+  display: grid;
+
+  grid-template-columns: 1fr;
+  align-items: start;
+
+  gap: clamp(0.5rem, 1.5dvw, 2rem);
+  overflow: hidden;
+
+  margin: 0.4em;
+}
+
+@media (min-width: 768px) {
+  .main {
+    grid-template-columns: 1fr 2fr;
+    grid-template-rows: auto 1fr auto;
+  }
+  .plan_panel {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+  }
+  .translate_panel {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+  .result_panel {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+  }
+  .debug_panel {
+    grid-column: 1 / 3;
+    grid-row: 3 / 4;
+  }
+}
+
+@mixin panel_base {
+  padding: 0.5rem;
+
+  position: relative;
+
+  backdrop-filter: blur(2px);
+  background-color: var(--panel-background);
+
+  overflow-x: hidden;
+
+  &:before {
+    content: "";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 10dvmin;
+    height: 10dvmin;
+  }
+}
+
+.plan_panel {
+  @include panel_base;
+}
+
+.translate_panel {
+  @include panel_base;
+}
+
+.result_panel {
+  @include panel_base;
+
+  min-height: 90svh;
+}
+
+.debug_panel {
+  @include panel_base;
+  pre {
+    white-space: pre-wrap;
+  }
+}
+
+.overlay {
+  animation: enter 1s;
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    min-height: 100dvh;
+    background-color: black;
+    opacity: 0.2;
+  }
+  .popup {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 100dvw;
+    height: min(50dvh, calc(100dvw / 16 * 9));
+    transform: translate(-50%, -50%);
+
+    background-color: black;
+    animation: 5s infinite alternate blink linear;
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.5rem;
+
+    font-size: clamp(2rem, 9dvw, calc(50dvh * 0.8));
+    font-family: "Black Ops One", system-ui;
+    font-weight: 400;
+    font-style: normal;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@keyframes enter {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}

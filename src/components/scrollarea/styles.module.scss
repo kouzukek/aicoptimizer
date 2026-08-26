@@ -1,0 +1,40 @@
+.root {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.viewport {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.content {
+  display: flex;
+  padding-right: 0.3rem;
+}
+
+.scrollbar {
+  display: flex;
+  justify-content: center;
+  background-color: rgb(0 0 0 / 12%);
+  width: 0.25rem;
+  margin: 1px;
+  opacity: 0;
+  transition: opacity 150ms;
+  pointer-events: none;
+
+  &[data-scrolling] {
+    transition-duration: 0ms;
+  }
+
+  &[data-hovering],
+  &[data-scrolling] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.thumb {
+  width: 100%;
+  background-color: oklch(14.5% 0 0deg);
+}

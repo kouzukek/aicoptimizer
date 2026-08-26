@@ -1,0 +1,37 @@
+.root {
+  --grid-color: color-mix(in oklch, white, var(--accent-color));
+  background-color: var(--bg);
+
+  &:before {
+    content: "";
+
+    position: fixed;
+    inset: -30% -200% -30%;
+    z-index: -2;
+
+    transform-origin: 50% 100%;
+    transform: translateY(-130dvh) perspective(220px) translateY(130dvh)
+      rotateX(72deg);
+
+    background:
+      repeating-linear-gradient(
+        90deg,
+        var(--grid-color) 0 3px,
+        transparent 3px 420px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        var(--grid-color) 0 1px,
+        transparent 1px 100px
+      );
+  }
+
+  &:after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--bg) 40%, transparent 100%);
+  }
+}
