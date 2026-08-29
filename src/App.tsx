@@ -10,7 +10,7 @@ import { Plan } from "./layouts/Plan";
 import { Translate } from "./layouts/Translate";
 import { Result } from "./layouts/Result";
 
-import { FaGears } from "react-icons/fa6";
+import { FaGears, FaGithub } from "react-icons/fa6";
 import styles from "./App.module.scss";
 
 const Overlay = () => {
@@ -42,6 +42,7 @@ const Main: FC<PropsWithChildren> = ({ children }) => {
 };
 
 function App() {
+  const repo_url = "https://github.com/kouzukek/aicoptimizer";
   return (
     <>
       <Header />
@@ -57,6 +58,11 @@ function App() {
         </div>
         <Overlay />
       </Main>
+      <footer className={styles.footer}>
+        <a href={repo_url}>
+          <FaGithub /> {repo_url}
+        </a>
+      </footer>
     </>
   );
 }
