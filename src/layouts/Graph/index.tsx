@@ -72,7 +72,7 @@ export const Graph: FC<{ recipes: number[] }> = ({ recipes }) => {
 
     for (const i of recipes) {
       const recipe = `recipe-${i}`;
-      const r = normalized_recipe_list[i];
+      const r = normalized_recipe_list["recipes"][i];
 
       _cy.add({
         data: { id: recipe, name: machine_list[r.machine].name },

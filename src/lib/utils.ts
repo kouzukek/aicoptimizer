@@ -1,7 +1,11 @@
-export const format = (n: number, fraction_digits: number = 0) =>
+export const format = (
+  n: number,
+  minimumFractionDigits: number = 0,
+  maximumFractionDigits?: number,
+) =>
   n.toLocaleString(undefined, {
-    maximumFractionDigits: fraction_digits,
-    minimumFractionDigits: fraction_digits,
+    maximumFractionDigits: maximumFractionDigits ?? minimumFractionDigits,
+    minimumFractionDigits,
   });
 
 export function* range(end: number) {
