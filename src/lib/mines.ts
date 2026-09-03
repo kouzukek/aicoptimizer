@@ -163,5 +163,9 @@ export const mining_points: MiningPoints = {
     { resourceId: "Xiragen", slots: { high: 2 } },
     { resourceId: "Xiragen", slots: { high: 2 } },
     { resourceId: "Inergen", slots: { high: 2 } },
+    // 雪松林
+    { resourceId: "Cuprium Ore", slots: { high: 2 } },
+    { resourceId: "Cuprium Ore", slots: { high: 2, low: 1 } },
+    { resourceId: "Xiragen", slots: { high: 2, low: 1 } },
   ],
 };
