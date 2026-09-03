@@ -214,7 +214,7 @@ const RecipeOperationRatio = () => {
                       .map(({ id, name, volume }) => (
                         <div key={`input-${id}`}>
                           <div>{name}</div>
-                          <div data-type="volume">{format(volume)}</div>
+                          <div data-type="volume">{format(volume, 0, 1)}</div>
                         </div>
                       ))}
                     {cost
@@ -223,7 +223,7 @@ const RecipeOperationRatio = () => {
                       .map(({ id, name, volume }) => (
                         <div key={`cost-${id}`}>
                           <div>{name}</div>
-                          <div data-type="volume">{format(volume)}</div>
+                          <div data-type="volume">{format(volume, 0, 1)}</div>
                         </div>
                       ))}
                   </div>
@@ -235,7 +235,7 @@ const RecipeOperationRatio = () => {
                       .map(({ id, name, volume }) => (
                         <div key={`output-${id}`}>
                           <div>{name}</div>
-                          <div data-type="volume">{format(volume)}</div>
+                          <div data-type="volume">{format(volume, 0, 1)}</div>
                         </div>
                       ))}
                   </div>

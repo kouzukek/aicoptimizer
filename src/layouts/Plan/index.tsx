@@ -42,7 +42,7 @@ const SaleableItems = () => {
       <tbody>
         {resource_ids
           .map((id) => [id, price_list[area][id]] as const)
-          .filter(([_, price]) => price)
+          .filter(([, price]) => price)
           .toSorted((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
           .map(([id, price]) => (
             <tr key={id}>
