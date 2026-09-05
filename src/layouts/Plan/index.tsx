@@ -18,13 +18,16 @@ const AreaSelector = () => {
   const [area, setArea] = useAtom(areaAtom);
 
   return (
-    <TabsPanel
-      withoutPanel
-      tabs={area_ids.map((id) => [id, area_list[id].name])}
-      value={area}
-      onValueChange={setArea}
-      rootClass={styles.tabs}
-    />
+    <>
+      <TabsPanel
+        withoutPanel
+        tabs={area_ids.map((id) => [id, area_list[id].name])}
+        value={area}
+        onValueChange={setArea}
+        rootClass={styles.tabs}
+      />
+      <div data-area={area} className={styles.data_holder} />
+    </>
   );
 };
 

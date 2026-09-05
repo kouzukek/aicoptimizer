@@ -11,7 +11,7 @@ import {
 import { type SolverRequest, type SolverResponse } from "./types";
 import { range, format } from "./utils";
 
-const LOG_PRESOLVE = false;
+const DEBUG = false;
 
 function key_encoder<Key extends Record<string, number>>(key: Key): string {
   return Object.keys(key)
@@ -292,9 +292,15 @@ export class Solver {
         if (file.endsWith(".wasm")) return "/highs.wasm";
         return file;
       },
+      ...(DEBUG
+        ? {
+            print: (line) => console.log(`[Highs] ${line}`),
+            printErr: (line) => console.error(`[Highs] ${line}`),
+          }
+        : {}),
     });
 
-    if (LOG_PRESOLVE) {
+    if (DEBUG) {
       const model = highs.createModel({ format: "lp", data: problem });
       model.options.set({ output_flag: true, presolve: "on" });
       model.presolve();
@@ -307,6 +313,7 @@ export class Solver {
       time_limit: 30,
       presolve: "on",
       mip_rel_gap: 0,
+      output_flag: DEBUG,
     });
 
     const columns = new Map<Variable, number>();
@@ -356,8 +363,8 @@ export async function solve({
     // p{n} = price * i{n}
     solver.addConstraint(
       [
-        [-1, _p.get({ n })],
-        [price_list[area][id] ?? 0, _i.get({ n })],
+        [1, _p.get({ n })],
+        [-1 * (price_list[area][id] ?? 0), _i.get({ n })],
       ],
       "=",
       0,
@@ -377,9 +384,9 @@ export async function solve({
     // (out/in/fc){n} = N * (r/c){k}
     solver.addConstraint(
       [
-        [-1, _out.get({ n })],
+        [1, _out.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].output[id] ?? 0,
+          -1 * (recipe_list[k].output[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -388,9 +395,9 @@ export async function solve({
     );
     solver.addConstraint(
       [
-        [-1, _in.get({ n })],
+        [1, _in.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].input[id] ?? 0,
+          -1 * (recipe_list[k].input[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -399,9 +406,9 @@ export async function solve({
     );
     solver.addConstraint(
       [
-        [-1, _fc.get({ n })],
+        [1, _fc.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].fixed_costs[id] ?? 0,
+          -1 * (recipe_list[k].fixed_costs[id] ?? 0),
           _c.get({ k }),
         ]),
       ],
@@ -410,15 +417,7 @@ export async function solve({
     );
     // Prevent overflow
     if ("prevent_overflow" in resource && resource.prevent_overflow === true)
-      solver.addConstraint(
-        [
-          [-1, _out.get({ n })],
-          [1, _in.get({ n })],
-          [1, _fc.get({ n })],
-        ],
-        "=",
-        0,
-      );
+      solver.addConstraint([[1, _i.get({ n })]], "=", 0);
   }
   for (const k of range(k_max)) {
     // c-1 <= r <= c

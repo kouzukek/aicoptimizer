@@ -336,6 +336,12 @@ const _machine_list = {
     power_use: 10,
   },
 
+  "Water Purifier": {
+    name: "浄水装置",
+    power_use: 0,
+    limit: { Wuling: 3, Valley: 0 },
+  },
+
   "Thermal Bank": {
     name: "発電機",
     power_use: 0,
@@ -1204,6 +1210,19 @@ export const recipe_list: Recipe[] = [
     output: { "Heavy Xiranite": 1 },
     duration: 10,
     machine: "Forge of the Sky",
+  },
+
+  {
+    input: { Sewage: 2 },
+    output: {},
+    duration: 1,
+    machine: "Water Purifier",
+  },
+  {
+    input: { Sewage: 30 },
+    output: { "Xircon Effluent": 1 },
+    duration: 15,
+    machine: "Water Purifier",
   },
 
   {
