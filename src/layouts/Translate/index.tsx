@@ -7,6 +7,7 @@ import {
   build_error_result,
 } from "../../lib/store";
 import { SolverResponseSchema } from "../../lib/types";
+import { format } from "../../lib/utils";
 
 import Worker from "./worker?worker";
 
@@ -18,6 +19,7 @@ const SolveButton = () => {
   const setResult = useSetAtom(resultAtom);
 
   const onClickHandler = () => {
+    const t0 = performance.now();
     const uuid = crypto.randomUUID();
     const remove_run_id = () => {
       setStatus((prev) => ({
@@ -40,7 +42,11 @@ const SolveButton = () => {
         try {
           const resp = SolverResponseSchema.parse(data);
           console.log(resp);
-          setResult(resp);
+
+          const t1 = performance.now();
+          console.log(`Solve time: ${format(t1 - t0)} ms`);
+
+          setResult({ ...resp, duration: t1 - t0 });
         } catch (e) {
           setResult(build_error_result(e));
         } finally {
@@ -82,6 +88,7 @@ const StatusArea = () => {
             : result.status === "Initialized"
               ? "Initialized"
               : "Invalid status"}
+      {result.duration !== undefined && ` in ${format(result.duration)} ms`}
     </div>
   );
 };

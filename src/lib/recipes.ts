@@ -1,3 +1,10 @@
+import {
+  type MineTemplates,
+  type MiningPoints,
+  mining_points,
+  mine_templates,
+} from "./mines.ts";
+
 export const area_list = {
   Wuling: { name: "武陵" },
   Valley: { name: "四号谷地" },
@@ -119,7 +126,7 @@ export const resource_list = {
   "Yazhen": { name: "芽針" },
 } as const satisfies Record<
   string,
-  { name: string; prevent_overflow?: boolean; baseload?: number }
+  { name: string; prevent_overflow?: boolean }
 >;
 export type ResourceId = keyof typeof resource_list;
 export const resource_ids = Object.keys(resource_list) as ResourceId[];
@@ -329,6 +336,12 @@ const _machine_list = {
     power_use: 10,
   },
 
+  "Water Purifier": {
+    name: "浄水装置",
+    power_use: 0,
+    limit: { Wuling: 3, Valley: 0 },
+  },
+
   "Thermal Bank": {
     name: "発電機",
     power_use: 0,
@@ -348,113 +361,13 @@ export type Quantities = { [key in ResourceId]?: number };
 export type Recipe = {
   input: Quantities;
   output: Quantities;
-  fixed_costs?: Quantities;
   duration: number;
   environment?: Environment;
   machine: MachineId;
   limit?: { [key in AreaId]: number | "inf" };
 };
 
-const normalize_recipes = (
-  array: Recipe[],
-): (Omit<Recipe, "fixed_costs"> & { fixed_costs: Quantities })[] => {
-  return array.map((r) => {
-    const ratio = 60 / r.duration;
-    const input: Quantities = {};
-    const output: Quantities = {};
-    const fixed_costs: Quantities = {};
-    for (const id of resource_ids) {
-      if (id in r.input) {
-        input[id] = r.input[id]! * ratio;
-      }
-      if (id in r.output) {
-        output[id] = (r.output[id]! * ratio) / (id === "Power" ? 60 : 1);
-      }
-    }
-
-    const machine = machine_list[r.machine];
-    fixed_costs["Power"] = machine.power_use;
-    if ("aux" in machine) {
-      const aux = machine["aux"]!;
-      for (const id of resource_ids) {
-        if (id in aux) {
-          const { count, duration } = aux[id]!;
-          const ratio = 60 / duration;
-          fixed_costs[id] = (fixed_costs[id] ?? 0) + count * ratio;
-        }
-      }
-    }
-    switch (r.environment) {
-      case "Acrid":
-        fixed_costs["Acridgen"] = (fixed_costs["Acridgen"] ?? 0) + 6;
-        break;
-      case "Stable":
-        fixed_costs["Inergen"] = (fixed_costs["Inergen"] ?? 0) + 6;
-        break;
-    }
-
-    return { ...r, input, output, fixed_costs, duration: 60 };
-  });
-};
-
 export const recipe_list: Recipe[] = [
-  {
-    input: { "Clean Water": 1 },
-    output: { "Originium Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 52, Valley: 0 },
-    machine: "Hydro Mining Rig",
-  },
-  {
-    input: { "Clean Water": 1 },
-    output: { "Ferrium Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 12, Valley: 0 },
-    machine: "Hydro Mining Rig",
-  },
-  {
-    input: { "Clean Water": 1 },
-    output: { "Cuprium Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 42, Valley: 0 },
-    machine: "Hydro Mining Rig",
-  },
-  {
-    input: {},
-    output: { "Originium Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 0, Valley: 56 },
-    machine: "Electric Mining Rig",
-  },
-  {
-    input: {},
-    output: { "Amethyst Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 0, Valley: 24 },
-    machine: "Electric Mining Rig",
-  },
-  {
-    input: {},
-    output: { "Ferrium Ore": 1 },
-    duration: 6,
-    limit: { Wuling: 0, Valley: 108 },
-    machine: "Electric Mining Rig Mk II",
-  },
-
-  {
-    input: {},
-    output: { Inergen: 1 },
-    duration: 3,
-    limit: { Wuling: 100, Valley: 0 },
-    machine: "Gas Extractor",
-  },
-  {
-    input: {},
-    output: { Xiragen: 1 },
-    duration: 3,
-    limit: { Wuling: 6, Valley: 0 },
-    machine: "Gas Extractor",
-  },
   {
     input: {},
     output: { "Clean Water": 1 },
@@ -1300,6 +1213,19 @@ export const recipe_list: Recipe[] = [
   },
 
   {
+    input: { Sewage: 2 },
+    output: {},
+    duration: 1,
+    machine: "Water Purifier",
+  },
+  {
+    input: { Sewage: 30 },
+    output: { "Xircon Effluent": 1 },
+    duration: 15,
+    machine: "Water Purifier",
+  },
+
+  {
     input: { "Originium Ore": 1 },
     output: { Power: 50 * 8 },
     duration: 8,
@@ -1386,4 +1312,124 @@ export const recipe_list: Recipe[] = [
   },
 ];
 
-export const normalized_recipe_list = normalize_recipes(recipe_list);
+export type NormalizedRecipes = {
+  recipes: (Omit<Recipe, "limit"> & {
+    groups: string[];
+    fixed_costs: Quantities;
+    origin: Recipe;
+  })[];
+  groups: { name: string; limit: { [key in AreaId]: number | "inf" } }[];
+};
+
+const normalize_recipe = (
+  r: Recipe,
+): Omit<NormalizedRecipes["recipes"][number], "groups"> => {
+  const ratio = 60 / r.duration;
+  const input: Quantities = {};
+  const output: Quantities = {};
+  const fixed_costs: Quantities = {};
+
+  const machine = machine_list[r.machine];
+  fixed_costs["Power"] = machine.power_use;
+  for (const id of resource_ids) {
+    if (r.input[id]) input[id] = r.input[id] * ratio;
+    if (r.output[id])
+      output[id] = (r.output[id] * ratio) / (id === "Power" ? 60 : 1);
+
+    const aux = machine.aux?.[id];
+    if (aux)
+      fixed_costs[id] =
+        (fixed_costs[id] ?? 0) + aux.count * (60 / aux.duration);
+  }
+
+  switch (r.environment) {
+    case "Acrid":
+      fixed_costs["Acridgen"] = (fixed_costs["Acridgen"] ?? 0) + 6;
+      break;
+    case "Stable":
+      fixed_costs["Inergen"] = (fixed_costs["Inergen"] ?? 0) + 6;
+      break;
+  }
+
+  return { ...r, input, output, fixed_costs, duration: 60, origin: r };
+};
+
+const normalize_recipes = (array: Recipe[]): NormalizedRecipes => {
+  const groups_def: NormalizedRecipes["groups"] = [];
+  const recipes = array.map((r, i) => {
+    const groups: string[] = [`:machine:${r.machine}`, `:recipe:${i}`];
+    if (r.limit) groups_def.push({ name: `:recipe:${i}`, limit: r.limit });
+    return { ...normalize_recipe(r), groups };
+  });
+
+  for (const id of machine_ids) {
+    const machine = machine_list[id];
+    if ("limit" in machine) {
+      const { limit } = machine;
+      if (limit) groups_def.push({ name: `:machine:${id}`, limit });
+    }
+  }
+
+  return { recipes, groups: groups_def };
+};
+
+const normalize_mining_points = (
+  mine_templates: MineTemplates,
+  mining_points: MiningPoints,
+): NormalizedRecipes => {
+  const recipes: NormalizedRecipes["recipes"] = [];
+  const groups: Map<string, NormalizedRecipes["groups"][number]> = new Map();
+
+  const area_limit = (area: AreaId, count: number) =>
+    Object.fromEntries(
+      area_ids.map((a) => [a, a === area ? count : 0]),
+    ) as NormalizedRecipes["groups"][number]["limit"];
+
+  for (const area of area_ids) {
+    for (const { resourceId, slots } of mining_points[area]) {
+      const templates = mine_templates[area][resourceId];
+      if (!templates) continue;
+
+      for (const [tier, count] of Object.entries(slots)) {
+        if (!count) continue;
+
+        const factories = templates[tier];
+        if (!factories) continue;
+
+        const name = `:mine:${area}:${resourceId}:${tier}`;
+
+        const registered = groups.get(name);
+        if (registered) {
+          const prev = registered.limit[area];
+          registered.limit[area] = prev === "inf" ? "inf" : prev + count;
+          continue;
+        }
+        groups.set(name, { name, limit: area_limit(area, count) });
+
+        for (const factory of factories) {
+          const recipe = factory(resourceId);
+          recipes.push({
+            ...normalize_recipe(recipe),
+            groups: [`:machine:${recipe.machine}`, name],
+          });
+        }
+      }
+    }
+  }
+
+  return { recipes, groups: [...groups.values()] };
+};
+
+const concat_normalized_recipes = (...args: NormalizedRecipes[]) =>
+  args.reduce(
+    (acc, cur) => ({
+      recipes: [...acc.recipes, ...cur.recipes],
+      groups: [...acc.groups, ...cur.groups],
+    }),
+    { recipes: [], groups: [] },
+  );
+
+export const normalized_recipe_list = concat_normalized_recipes(
+  normalize_recipes(recipe_list),
+  normalize_mining_points(mine_templates, mining_points),
+);

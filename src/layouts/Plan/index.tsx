@@ -18,13 +18,16 @@ const AreaSelector = () => {
   const [area, setArea] = useAtom(areaAtom);
 
   return (
-    <TabsPanel
-      withoutPanel
-      tabs={area_ids.map((id) => [id, area_list[id].name])}
-      value={area}
-      onValueChange={setArea}
-      rootClass={styles.tabs}
-    />
+    <>
+      <TabsPanel
+        withoutPanel
+        tabs={area_ids.map((id) => [id, area_list[id].name])}
+        value={area}
+        onValueChange={setArea}
+        rootClass={styles.tabs}
+      />
+      <div data-area={area} className={styles.data_holder} />
+    </>
   );
 };
 
@@ -42,7 +45,7 @@ const SaleableItems = () => {
       <tbody>
         {resource_ids
           .map((id) => [id, price_list[area][id]] as const)
-          .filter(([_, price]) => price)
+          .filter(([, price]) => price)
           .toSorted((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
           .map(([id, price]) => (
             <tr key={id}>

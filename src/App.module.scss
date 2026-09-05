@@ -126,3 +126,40 @@
     opacity: 1;
   }
 }
+
+.changelog {
+  font-size: x-small;
+  margin: 0.4rem;
+  padding: 0.4rem;
+
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+
+  summary {
+    cursor: pointer;
+
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &[open] .latest_change {
+    display: none;
+  }
+
+  ul {
+    margin: 0;
+    padding-block: 0.4em;
+    padding-left: 4em;
+  }
+}
+
+.footer {
+  text-align: center;
+  margin-bottom: 0.5em;
+
+  a {
+    text-decoration: none;
+    border-bottom: 1px currentColor solid;
+  }
+}

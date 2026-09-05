@@ -48,7 +48,7 @@ export const additionalRequirementsAtom = atom(
     });
   },
 );
-export const resultAtom = atom<SolverResponse>({
+export const resultAtom = atom<SolverResponse & { duration?: number }>({
   status: "Initialized",
 });
 export const build_error_result = (e: unknown): SolverResponse => {

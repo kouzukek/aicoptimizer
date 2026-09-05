@@ -1,19 +1,17 @@
-import Highs from "highs";
+import Highs, { type Model } from "highs";
 
 import {
-  machine_ids,
   machine_list,
-  normalized_recipe_list as recipe_list,
-  recipe_list as raw_recipe_list,
+  normalized_recipe_list,
   price_list,
   resource_ids,
   resource_list,
   type Quantities,
 } from "./recipes";
 import { type SolverRequest, type SolverResponse } from "./types";
-import { range } from "./utils";
+import { range, format } from "./utils";
 
-const LOG_PRESOLVE = false;
+const DEBUG = false;
 
 function key_encoder<Key extends Record<string, number>>(key: Key): string {
   return Object.keys(key)
@@ -22,9 +20,90 @@ function key_encoder<Key extends Record<string, number>>(key: Key): string {
     .join("_");
 }
 
+const to_lp_format = (lp: ReturnType<Model["getPresolvedLp"]>): string => {
+  const {
+    numCols,
+    numRows,
+    sense,
+    offset,
+    colCost,
+    colLower,
+    colUpper,
+    rowLower,
+    rowUpper,
+    matrix,
+    integrality,
+  } = lp;
+  const fin = Number.isFinite;
+  const cn = (j: number) => `x${j}`;
+
+  const rows: [number, number][][] = Array.from({ length: numRows }, () => []);
+  const { starts, indices, values } = matrix;
+  if (matrix.format === "csc")
+    for (let j = 0; j < numCols; j++)
+      for (let p = starts[j]; p < starts[j + 1]; p++)
+        rows[indices[p]].push([values[p], j]);
+  else
+    for (let i = 0; i < numRows; i++)
+      for (let p = starts[i]; p < starts[i + 1]; p++)
+        rows[i].push([values[p], indices[p]]);
+
+  const expr = (terms: [number, number][]) =>
+    terms
+      .filter(([c]) => c !== 0)
+      .map(([c, j], i) =>
+        [
+          c < 0 ? "-" : i === 0 ? undefined : "+",
+          Math.abs(c) === 1 ? undefined : format(Math.abs(c), 0, 4),
+          cn(j),
+        ]
+          .filter((s) => s !== undefined)
+          .join(" "),
+      )
+      .join(" ");
+
+  const out = [sense === -1 ? "MAXIMIZE" : "MINIMIZE"];
+  out.push(
+    ` obj: ${expr([...colCost].map((c, j) => [c, j]))}` +
+      (offset ? ` ${offset < 0 ? "-" : "+"} ${Math.abs(offset)}` : ""),
+  );
+
+  out.push("SUBJECT TO");
+  for (let i = 0; i < numRows; i++) {
+    const e = expr(rows[i]);
+    if (e === "") continue; // 空行は捨てる
+    if (rowLower[i] === rowUpper[i]) out.push(` R${i}: ${e} = ${rowUpper[i]}`);
+    else {
+      // LP format に RANGES は無いので2本に割る
+      if (fin(rowUpper[i])) out.push(` R${i}u: ${e} <= ${rowUpper[i]}`);
+      if (fin(rowLower[i])) out.push(` R${i}l: ${e} >= ${rowLower[i]}`);
+    }
+  }
+
+  const bounds: string[] = [];
+  for (let j = 0; j < numCols; j++) {
+    const [lo, hi] = [colLower[j], colUpper[j]];
+    if (lo === 0 && !fin(hi)) continue; // LP format の既定は [0, inf)
+    if (lo === hi) bounds.push(` ${cn(j)} = ${format(lo, 0, 4)}`);
+    else if (!fin(lo) && !fin(hi)) bounds.push(` ${cn(j)} free`);
+    else if (!fin(lo)) bounds.push(` -inf <= ${cn(j)} <= ${format(hi, 0, 4)}`);
+    else if (!fin(hi)) bounds.push(` ${cn(j)} >= ${format(lo, 0, 4)}`);
+    else bounds.push(` ${format(lo, 0, 4)} <= ${cn(j)} <= ${format(hi, 0, 4)}`);
+  }
+  if (bounds.length) out.push("BOUNDS", ...bounds);
+
+  const gen = [...(integrality ?? [])]
+    .map((t, j) => (t === 1 || t === 4 ? cn(j) : null))
+    .filter((s) => s !== null);
+  if (gen.length) out.push("GENERAL", ` ${gen.join(" ")}`);
+
+  out.push("END");
+  return out.join("\n");
+};
+
 type Options = Partial<{
-  min: number | "-inf";
-  max: number | "inf";
+  min: Constant;
+  max: Constant;
   type: "binary" | "integer" | "real";
 }>;
 
@@ -138,7 +217,7 @@ export class Solver {
     this.constraints.push({ lhs, op, rhs });
   }
   private build_expression(term: Term[]): string | null {
-    if (term.some(([_, v]) => !this.vars.has(v)))
+    if (term.some(([, v]) => !this.vars.has(v)))
       throw new Error("Unknown variable used.");
 
     const filtered_term = term.filter(([c]) => c !== 0);
@@ -213,17 +292,29 @@ export class Solver {
         if (file.endsWith(".wasm")) return "/highs.wasm";
         return file;
       },
+      ...(DEBUG
+        ? {
+            print: (line) => console.log(`[Highs] ${line}`),
+            printErr: (line) => console.error(`[Highs] ${line}`),
+          }
+        : {}),
     });
 
-    if (LOG_PRESOLVE) {
+    if (DEBUG) {
       const model = highs.createModel({ format: "lp", data: problem });
       model.options.set({ output_flag: true, presolve: "on" });
       model.presolve();
       console.log(model.getLp());
-      console.log(model.getPresolvedLp());
+      console.log(problem);
+      console.log(to_lp_format(model.getPresolvedLp()));
     }
 
-    const result = highs.solve(problem, { time_limit: 30, presolve: "on" });
+    const result = highs.solve(problem, {
+      time_limit: 30,
+      presolve: "on",
+      mip_rel_gap: 0,
+      output_flag: DEBUG,
+    });
 
     const columns = new Map<Variable, number>();
     if (result.Status === "Optimal")
@@ -246,6 +337,8 @@ export async function solve({
   additionalRequirements,
 }: SolverRequest): Promise<SolverResponse> {
   const solver = new Solver();
+
+  const { recipes: recipe_list, groups: limit_groups } = normalized_recipe_list;
 
   const n_max = resource_ids.length;
   const k_max = recipe_list.length;
@@ -270,8 +363,8 @@ export async function solve({
     // p{n} = price * i{n}
     solver.addConstraint(
       [
-        [-1, _p.get({ n })],
-        [price_list[area][id] ?? 0, _i.get({ n })],
+        [1, _p.get({ n })],
+        [-1 * (price_list[area][id] ?? 0), _i.get({ n })],
       ],
       "=",
       0,
@@ -291,9 +384,9 @@ export async function solve({
     // (out/in/fc){n} = N * (r/c){k}
     solver.addConstraint(
       [
-        [-1, _out.get({ n })],
+        [1, _out.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].output[id] ?? 0,
+          -1 * (recipe_list[k].output[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -302,9 +395,9 @@ export async function solve({
     );
     solver.addConstraint(
       [
-        [-1, _in.get({ n })],
+        [1, _in.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].input[id] ?? 0,
+          -1 * (recipe_list[k].input[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -313,9 +406,9 @@ export async function solve({
     );
     solver.addConstraint(
       [
-        [-1, _fc.get({ n })],
+        [1, _fc.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          recipe_list[k].fixed_costs[id] ?? 0,
+          -1 * (recipe_list[k].fixed_costs[id] ?? 0),
           _c.get({ k }),
         ]),
       ],
@@ -324,24 +417,9 @@ export async function solve({
     );
     // Prevent overflow
     if ("prevent_overflow" in resource && resource.prevent_overflow === true)
-      solver.addConstraint(
-        [
-          [-1, _out.get({ n })],
-          [1, _in.get({ n })],
-          [1, _fc.get({ n })],
-        ],
-        "=",
-        0,
-      );
+      solver.addConstraint([[1, _i.get({ n })]], "=", 0);
   }
   for (const k of range(k_max)) {
-    {
-      const limit = recipe_list[k].limit?.[area];
-      if (limit !== undefined)
-        // c{k} < limit
-        _c.get({ k }).setOptions({ max: limit });
-    }
-
     // c-1 <= r <= c
     solver.addConstraint(
       [
@@ -360,10 +438,11 @@ export async function solve({
       1,
     );
   }
+
   {
     const terms: Term[] = [];
     for (const k of range(k_max)) {
-      const raw = raw_recipe_list[k];
+      const raw = recipe_list[k].origin;
       if (raw.machine === "Thermal Bank") {
         const e = raw.output["Power"] ?? 0;
         terms.push([e, _c.get({ k })], [-e, _r.get({ k })]);
@@ -372,12 +451,13 @@ export async function solve({
     solver.addConstraint(terms, "<=", 100000);
   }
 
-  for (const mid of machine_ids) {
-    const limit = machine_list[mid].limit?.[area];
-    if (limit !== undefined)
+  for (const group of limit_groups) {
+    const name = group.name;
+    const limit = group.limit[area];
+    if (limit !== "inf")
       solver.addConstraint(
         [...range(k_max)].map((k) => [
-          recipe_list[k].machine === mid ? 1 : 0,
+          recipe_list[k].groups.includes(name) ? 1 : 0,
           _c.get({ k }),
         ]),
         "<=",
