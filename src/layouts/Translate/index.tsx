@@ -41,9 +41,9 @@ const SolveButton = () => {
       const onMessage = ({ data }: MessageEvent) => {
         try {
           const resp = SolverResponseSchema.parse(data);
-          console.log(resp);
-
           const t1 = performance.now();
+
+          console.log(resp);
           console.log(`Solve time: ${format(t1 - t0)} ms`);
 
           setResult({ ...resp, duration: t1 - t0 });
