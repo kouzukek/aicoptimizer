@@ -7,12 +7,12 @@ import {
   price_list,
   resource_ids,
   resource_list,
-  type Quantities,
+  type MachineId,
 } from "./recipes";
 import { type SolverRequest, type SolverResponse } from "./types";
 import { range, format } from "./utils";
 
-const DEBUG = false;
+const DEBUG = true;
 
 function key_encoder<Key extends Record<string, number>>(key: Key): string {
   return Object.keys(key)
@@ -283,7 +283,7 @@ export class Solver {
       .filter((s) => s !== null)
       .join("\n");
   }
-  public async solve(): Promise<Result> {
+  public async solve(mip_rel_gap = 0): Promise<Result> {
     if (this.objective.length === 0 || this.constraints.length === 0)
       throw new Error("Objective or constraints is empty.");
     const problem = this.build_problem();
@@ -311,9 +311,9 @@ export class Solver {
     }
 
     const result = highs.solve(problem, {
-      time_limit: 30,
+      time_limit: 60 * 10,
       presolve: "on",
-      mip_rel_gap: 0,
+      mip_rel_gap,
       output_flag: DEBUG,
     });
 
@@ -333,252 +333,556 @@ export class Solver {
   }
 }
 
+const fluid_ids = resource_ids.filter(
+  (id) =>
+    "prevent_overflow" in resource_list[id] &&
+    resource_list[id].prevent_overflow === true,
+);
+const recipes_with_fluid = recipes
+  .map(({ input, output, fixed_costs }, i) =>
+    fluid_ids.some(
+      (id) =>
+        (input[id] ?? 0) > 0 ||
+        (output[id] ?? 0) > 0 ||
+        (fixed_costs[id] ?? 0) > 0,
+    )
+      ? i
+      : null,
+  )
+  .filter((i) => i !== null) as number[];
+
 export async function solve({
   area,
   additionalRequirements,
 }: SolverRequest): Promise<SolverResponse> {
-  const solver = new Solver();
-
-  const n_max = resource_ids.length;
-  const k_max = recipes.length;
-
-  const _i = solver.createVars("i", { n: n_max });
-  const _in = solver.createVars("_in", { n: n_max });
-  const _out = solver.createVars("_out", { n: n_max });
-  const _fc = solver.createVars("_fc", { n: n_max });
-
-  const _c = solver.createVars("c", { k: k_max }, { type: "integer" });
-  const _r = solver.createVars("r", { k: k_max });
-  const _p = solver.createVars("p", { n: n_max });
-
-  // sum(p{n})
-  solver.setObjective(
-    [...range(n_max)].map((n): Term[] => [[1, _p.get({ n })]]).flat(),
-  );
-
-  for (const n of range(n_max)) {
-    const id = resource_ids[n];
-    const resource = resource_list[id];
-    // p{n} = price * i{n}
-    solver.addConstraint(
-      [
-        [1, _p.get({ n })],
-        [-1 * (price_list[area][id] ?? 0), _i.get({ n })],
-      ],
-      "=",
-      0,
-    );
-
-    // i{n} = out{n} - in{n} - fc{n}
-    solver.addConstraint(
-      [
-        [1, _i.get({ n })],
-        [-1, _out.get({ n })],
-        [1, _in.get({ n })],
-        [1, _fc.get({ n })],
-      ],
-      "=",
-      0,
-    );
-    // (out/in/fc){n} = N * (r/c){k}
-    solver.addConstraint(
-      [
-        [1, _out.get({ n })],
-        ...[...range(k_max)].map((k): Term => [
-          -1 * (recipes[k].output[id] ?? 0),
-          _r.get({ k }),
-        ]),
-      ],
-      "=",
-      0,
-    );
-    solver.addConstraint(
-      [
-        [1, _in.get({ n })],
-        ...[...range(k_max)].map((k): Term => [
-          -1 * (recipes[k].input[id] ?? 0),
-          _r.get({ k }),
-        ]),
-      ],
-      "=",
-      0,
-    );
-    solver.addConstraint(
-      [
-        [1, _fc.get({ n })],
-        ...[...range(k_max)].map((k): Term => [
-          -1 * (recipes[k].fixed_costs[id] ?? 0),
-          _c.get({ k }),
-        ]),
-      ],
-      "=",
-      0,
-    );
-    // Prevent overflow
-    if ("prevent_overflow" in resource && resource.prevent_overflow === true)
-      solver.addConstraint([[1, _i.get({ n })]], "=", 0);
-  }
-  for (const k of range(k_max)) {
-    // c-1 <= r <= c
-    solver.addConstraint(
-      [
-        [1, _r.get({ k })],
-        [-1, _c.get({ k })],
-      ],
-      "<=",
-      0,
-    );
-    solver.addConstraint(
-      [
-        [1, _c.get({ k })],
-        [-1, _r.get({ k })],
-      ],
-      "<=",
-      1,
-    );
+  let presolve: Result | null = null;
+  if (DEBUG) {
+    console.log(JSON.stringify(recipes, null, 4));
   }
 
-  {
-    const terms: Term[] = [];
-    for (const k of range(k_max)) {
-      const raw = recipes[k].origin;
-      if (raw.machine === "Thermal Bank") {
-        const e = raw.output["Power"] ?? 0;
-        terms.push([e, _c.get({ k })], [-e, _r.get({ k })]);
+  for (let i = 0; i < 2; i++) {
+    const solver = new Solver();
+
+    const n_max = resource_ids.length;
+    const k_max = recipes.length;
+    const z_max = presolve ? 4 : 1;
+
+    const _i = solver.createVars("i", { n: n_max });
+    const _s = solver.createVars(
+      "_s",
+      { n: n_max, z: z_max },
+      { min: "-inf", max: "inf" },
+    );
+    const _splus = solver.createVars("_splus", { n: n_max, z: z_max });
+    const _sminus = solver.createVars("_sminus", { n: n_max, z: z_max });
+    const _in = solver.createVars("_in", { n: n_max, z: z_max });
+    const _out = solver.createVars("_out", { n: n_max, z: z_max });
+    const _fc = solver.createVars("_fc", { n: n_max, z: z_max });
+
+    const _c = solver.createVars(
+      "c",
+      { k: k_max, z: z_max },
+      { type: "integer" },
+    );
+    const _r = solver.createVars("r", { k: k_max, z: z_max });
+    const _p = solver.createVars("p", { n: n_max });
+
+    // sum(p{n})
+    solver.setObjective(
+      [...range(n_max)]
+        .map((n): Term[] => [
+          [1, _p.get({ n })],
+          ...[...range(z_max)].map((z): Term => [
+            resource_ids[n] === "Power" ? 0 : -0.05,
+            _sminus.get({ n, z }),
+          ]),
+        ])
+        .flat(),
+    );
+
+    for (const n of range(n_max)) {
+      const id = resource_ids[n];
+      const resource = resource_list[id];
+      // p{n} = price * i{n}
+      solver.addConstraint(
+        [
+          [1, _p.get({ n })],
+          [-1 * (price_list[area][id] ?? 0), _i.get({ n })],
+        ],
+        "=",
+        0,
+      );
+
+      // i{n} = sum(s{n,z})
+      solver.addConstraint(
+        [
+          [1, _i.get({ n })],
+          ...[...range(z_max)].map((z): Term => [-1, _s.get({ n, z })]),
+        ],
+        "=",
+        0,
+      );
+
+      for (const z of range(z_max)) {
+        // s{n,z} = in{n,z} - out{n,z} - fc{n,z}
+        solver.addConstraint(
+          [
+            [1, _s.get({ n, z })],
+            [-1, _out.get({ n, z })],
+            [1, _in.get({ n, z })],
+            [1, _fc.get({ n, z })],
+          ],
+          "=",
+          0,
+        );
+        solver.addConstraint(
+          [
+            [1, _s.get({ n, z })],
+            [-1, _splus.get({ n, z })],
+            [1, _sminus.get({ n, z })],
+          ],
+          "=",
+          0,
+        );
+
+        // (out/in/fc){n} = N * (r/c){k}
+        solver.addConstraint(
+          [
+            [1, _out.get({ n, z })],
+            ...[...range(k_max)].map((k): Term => [
+              -1 * (recipes[k].output[id] ?? 0),
+              _r.get({ k, z }),
+            ]),
+          ],
+          "=",
+          0,
+        );
+        solver.addConstraint(
+          [
+            [1, _in.get({ n, z })],
+            ...[...range(k_max)].map((k): Term => [
+              -1 * (recipes[k].input[id] ?? 0),
+              _r.get({ k, z }),
+            ]),
+          ],
+          "=",
+          0,
+        );
+        solver.addConstraint(
+          [
+            [1, _fc.get({ n, z })],
+            ...[...range(k_max)].map((k): Term => [
+              -1 * (recipes[k].fixed_costs[id] ?? 0),
+              _c.get({ k, z }),
+            ]),
+          ],
+          "=",
+          0,
+        );
+        // Prevent overflow
+        if (
+          "prevent_overflow" in resource &&
+          resource.prevent_overflow === true
+        )
+          solver.addConstraint([[1, _s.get({ n, z })]], "=", 0);
       }
     }
-    solver.addConstraint(terms, "<=", 100000);
-  }
+    for (const k of range(k_max)) {
+      for (const z of range(z_max)) {
+        // c-1 <= r <= c
+        solver.addConstraint(
+          [
+            [1, _r.get({ k, z })],
+            [-1, _c.get({ k, z })],
+          ],
+          "<=",
+          0,
+        );
+        solver.addConstraint(
+          [
+            [1, _c.get({ k, z })],
+            [-1, _r.get({ k, z })],
+          ],
+          "<=",
+          presolve ? 1 : 4,
+        );
 
-  for (const group of limit_groups) {
-    const name = group.name;
-    const limit = group.limit[area];
-    if (limit !== "inf")
+        if (presolve) {
+          if (!recipes_with_fluid.includes(k)) {
+            const pr = [...presolve.columns.keys()].find(
+              (key) => key.name === `c_${k}_0`,
+            );
+            if (pr) {
+              const value = presolve.columns.get(pr) ?? 0;
+              if (Math.abs(value) < 1e-6) {
+                solver.addConstraint([[1, _c.get({ k, z })]], "=", 0);
+                solver.addConstraint([[1, _r.get({ k, z })]], "=", 0);
+                _c.get({ k, z }).setOptions({ type: "real" });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (const z of range(z_max)) {
+      // sum(c{k,z}) <= 40
+      const excluded_machines: MachineId[] = [
+        "Hydro Mining Rig",
+        "Electric Mining Rig",
+        "Electric Mining Rig Mk II",
+        "Gas Extractor",
+        "Fluid Pump",
+        "Acid Resistant Pump Mk II",
+      ];
       solver.addConstraint(
-        [...range(k_max)].map((k) => [
-          recipes[k].groups.includes(name) ? 1 : 0,
-          _c.get({ k }),
+        [...range(k_max)].map((k): Term => [
+          excluded_machines.includes(recipes[k].machine) ? 0 : 1,
+          _c.get({ k, z }),
         ]),
         "<=",
-        limit,
+        presolve === null ? "inf" : z === 0 ? 80 : 40,
       );
-  }
+    }
 
-  for (const [id, { min, max }] of additionalRequirements["balance"] ?? []) {
-    const n = resource_ids.indexOf(id);
-    if (min !== undefined || max !== undefined)
-      _i.get({ n }).setOptions({ min, max });
-  }
+    {
+      const terms: Term[] = [];
+      for (const k of range(k_max)) {
+        for (const z of range(z_max)) {
+          const raw = recipes[k].origin;
+          if (raw.machine === "Thermal Bank") {
+            const e = raw.output["Power"] ?? 0;
+            terms.push([e, _c.get({ k, z })], [-e, _r.get({ k, z })]);
+          }
+        }
+      }
+      solver.addConstraint(terms, "<=", 100000);
+    }
 
-  for (const [id, { min, max }] of additionalRequirements["output"] ?? []) {
-    const n = resource_ids.indexOf(id);
-    if (min !== undefined || max !== undefined)
-      _out.get({ n }).setOptions({ min, max });
-  }
+    for (const group of limit_groups) {
+      const name = group.name;
+      const limit = group.limit[area];
+      if (limit !== "inf")
+        solver.addConstraint(
+          [...range(k_max)]
+            .map((k) =>
+              [...range(z_max)].map((z): Term => [
+                recipes[k].groups.includes(name) ? 1 : 0,
+                _c.get({ k, z }),
+              ]),
+            )
+            .flat(),
+          "<=",
+          limit,
+        );
+    }
 
-  const result = await solver.solve();
+    for (const [id, { min, max }] of additionalRequirements["balance"] ?? []) {
+      const n = resource_ids.indexOf(id);
+      if (min !== undefined || max !== undefined)
+        _i.get({ n }).setOptions({ min, max });
+    }
 
-  if (result.status !== "Optimal")
+    for (const [id, { min, max }] of additionalRequirements["output"] ?? []) {
+      const n = resource_ids.indexOf(id);
+      if (min !== undefined || max !== undefined) {
+        solver.addConstraint(
+          [...range(z_max)].map((z) => [1, _out.get({ n, z })]),
+          ">=",
+          min ?? 0,
+        );
+        solver.addConstraint(
+          [...range(z_max)].map((z) => [1, _out.get({ n, z })]),
+          "<=",
+          max ?? "inf",
+        );
+      }
+    }
+
+    const result = await solver.solve(presolve ? 0.05 : 0);
+    console.log(result);
+
+    if (result.status !== "Optimal")
+      return {
+        status: "Unoptimized",
+        message: result.status,
+        problem: result.problem,
+      };
+
+    if (!presolve) {
+      presolve = result;
+      continue;
+    }
+
     return {
-      status: "Unoptimized",
-      message: result.status,
-      problem: result.problem,
+      status: "Optimal",
+      profits: {
+        items: [...range(n_max)]
+          .map((n) => ({
+            id: resource_ids[n],
+            name: resource_list[resource_ids[n]].name,
+            count: result.columns.get(_i.get({ n })) ?? 0,
+            profit: result.columns.get(_p.get({ n })) ?? 0,
+          }))
+          .filter(
+            ({ id, profit }) =>
+              profit > 1e-6 ||
+              additionalRequirements.balance?.find(([rid]) => rid === id) ||
+              additionalRequirements.output?.find(([rid]) => rid === id),
+          )
+          .toSorted((a, b) => b.profit - a.profit),
+        totalProfit: [...range(n_max)].reduce(
+          (acc, n) => acc + (result.columns.get(_p.get({ n })) ?? 0),
+          0,
+        ),
+      },
+      balance: [...range(z_max)].map((z) => ({
+        zone_id: z,
+        zone: `zone-${z}`,
+        items: [...range(n_max)]
+          .map((n) => {
+            const input =
+              (result.columns.get(_in.get({ n, z })) ?? 0) +
+              (result.columns.get(_fc.get({ n, z })) ?? 0);
+            const output = result.columns.get(_out.get({ n, z })) ?? 0;
+
+            return {
+              id: resource_ids[n],
+              name: resource_list[resource_ids[n]].name,
+              output,
+              input,
+              balance: output - input,
+            };
+          })
+          .filter(
+            ({ id, output, input, balance }) =>
+              id !== "Power" &&
+              (output >= 1e-6 || input >= 1e-6 || balance >= 1e-6),
+          )
+          .toSorted((a, b) => b.output - a.output),
+      })),
+      power: (() => {
+        let totalInput = 0;
+        let totalOutput = 0;
+        const stocker = new Map<
+          MachineId,
+          { c: number; r: number; output: number; input: number }
+        >();
+
+        for (const k of range(k_max)) {
+          for (const z of range(z_max)) {
+            const machine = recipes[k].machine;
+            const prev = stocker.get(machine) ?? {
+              c: 0,
+              r: 0,
+              output: 0,
+              input: 0,
+            };
+
+            const c = result.columns.get(_c.get({ k, z })) ?? 0;
+            const r = result.columns.get(_r.get({ k, z })) ?? 0;
+            const output = (recipes[k].output["Power"] ?? 0) * r;
+            const input =
+              (recipes[k].input["Power"] ?? 0) * r +
+              (recipes[k].fixed_costs["Power"] ?? 0) * c;
+
+            totalOutput += output;
+            totalInput += input;
+
+            stocker.set(machine, {
+              c: prev.c + c,
+              r: prev.r + r,
+              output: prev.output + output,
+              input: prev.input + input,
+            });
+          }
+        }
+
+        return {
+          machines: [...stocker.entries()]
+            .map(([id, { c, r, output, input }]) => ({
+              id,
+              name: machine_list[id].name,
+              count: c,
+              ratio: c > 1e-6 ? r / c : 0,
+              output,
+              input,
+            }))
+            .filter(({ count }) => count > 1e-6)
+            .toSorted((a, b) => b.output - b.input - (a.output - a.input)),
+          total: { input: totalInput, output: totalOutput },
+        };
+      })(),
+      operation: [...range(z_max)].map((z) => ({
+        zone_id: z,
+        zone: `zone-${z}`,
+        recipes: [...range(k_max)]
+          .map((k) => ({
+            machine: machine_list[recipes[k].machine].name,
+            input: resource_ids
+              .map((id) => [
+                {
+                  id,
+                  name: resource_list[id].name,
+                  volume: recipes[k].input[id] ?? 0,
+                },
+              ])
+              .flat()
+              .filter(({ id, volume }) => volume > 1e-6 && id !== "Power"),
+            costs: resource_ids
+              .map((id) => [
+                {
+                  id,
+                  name: resource_list[id].name,
+                  volume: recipes[k].fixed_costs[id] ?? 0,
+                },
+              ])
+              .flat()
+              .filter(({ id, volume }) => volume > 1e-6 && id !== "Power"),
+            output: resource_ids
+              .map((id) => [
+                {
+                  id,
+                  name: resource_list[id].name,
+                  volume: recipes[k].output[id] ?? 0,
+                },
+              ])
+              .flat()
+              .filter(({ volume }) => volume > 1e-6),
+            count: result.columns.get(_c.get({ k, z })) ?? 0,
+            ratio:
+              (result.columns.get(_c.get({ k, z })) ?? 0) > 1e-6
+                ? (result.columns.get(_r.get({ k, z })) ?? 0) /
+                  (result.columns.get(_c.get({ k, z })) ?? 0)
+                : 0,
+          }))
+          .filter(({ count }) => count > 1e-6)
+          .toSorted((a, b) => b.count * b.ratio - a.count * a.ratio),
+      })),
+      flow: {
+        nodes: [
+          { id: "warehouse", name: "倉庫", kind: "Group" },
+          ...[...range(z_max)].map((z) => ({
+            id: `zone-${z}`,
+            name: `zone-${z}`,
+            kind: "Group",
+          })),
+          ...[...range(z_max)]
+            .map((z) =>
+              [...range(n_max)]
+                .filter(
+                  (n) =>
+                    (result.columns.get(_out.get({ n, z })) ?? 0) +
+                      (result.columns.get(_in.get({ n, z })) ?? 0) +
+                      (result.columns.get(_fc.get({ n, z })) ?? 0) >
+                    1e-6,
+                )
+                .map((n) => ({
+                  id: `${resource_ids[n]}-${z}`,
+                  name: resource_list[resource_ids[n]].name,
+                  kind: "resource",
+                  parent: `zone-${z}`,
+                })),
+            )
+            .flat(),
+          ...[...range(n_max)]
+            .filter(
+              (n) =>
+                [...range(z_max)].reduce(
+                  (acc, z) =>
+                    acc + Math.abs(result.columns.get(_s.get({ n, z })) ?? 0),
+                  0,
+                ) > 1e-6,
+            )
+            .map((n) => ({
+              id: `${resource_ids[n]}-w`,
+              name: resource_list[resource_ids[n]].name,
+              kind: "resource",
+              parent: "warehouse",
+            })),
+          ...[...range(k_max)]
+            .map((k) =>
+              [...range(z_max)]
+                .filter(
+                  (z) => (result.columns.get(_r.get({ k, z })) ?? 0) > 1e-6,
+                )
+                .map((z) => ({
+                  id: `recipe-${k}-${z}}`,
+                  name: machine_list[recipes[k].machine].name,
+                  kind: "machine",
+                  parent: `zone-${z}`,
+                })),
+            )
+            .flat(),
+        ],
+        edges: [
+          ...[...range(n_max)]
+            .map((n) =>
+              [...range(z_max)]
+                .filter(
+                  (z) =>
+                    resource_ids[n] !== "Power" &&
+                    Math.abs(result.columns.get(_s.get({ n, z })) ?? 0) > 1e-6,
+                )
+                .map((z) => {
+                  const s = result.columns.get(_s.get({ n, z })) ?? 0;
+                  const rz = `${resource_ids[n]}-${z}`;
+                  const rw = `${resource_ids[n]}-w`;
+                  return s > 0
+                    ? { source: rz, target: rw, kind: "output" }
+                    : { source: rw, target: rz, kind: "input" };
+                }),
+            )
+            .flat(),
+          ...[...range(k_max)]
+            .map((k) =>
+              [...range(z_max)]
+                .filter(
+                  (z) => (result.columns.get(_r.get({ z, k })) ?? 0) > 1e-6,
+                )
+                .map((z) => {
+                  const result: {
+                    source: string;
+                    target: string;
+                    kind: string;
+                  }[] = [];
+                  for (const n of range(n_max)) {
+                    if (
+                      (recipes[k].input[resource_ids[n]] ?? 0) > 0 &&
+                      resource_ids[n] !== "Power"
+                    ) {
+                      result.push({
+                        source: `${resource_ids[n]}-${z}`,
+                        target: `recipe-${k}-${z}}`,
+                        kind: "input",
+                      });
+                    }
+                    if (
+                      (recipes[k].fixed_costs[resource_ids[n]] ?? 0) > 0 &&
+                      resource_ids[n] !== "Power"
+                    ) {
+                      result.push({
+                        source: `${resource_ids[n]}-${z}`,
+                        target: `recipe-${k}-${z}}`,
+                        kind: "costs",
+                      });
+                    }
+                    if ((recipes[k].output[resource_ids[n]] ?? 0) > 0) {
+                      result.push({
+                        source: `recipe-${k}-${z}}`,
+                        target: `${resource_ids[n]}-${z}`,
+                        kind: "output",
+                      });
+                    }
+                  }
+                  return result;
+                }),
+            )
+            .flat(2),
+        ],
+      },
     };
+  }
 
-  const vars = {
-    ...Object.fromEntries(
-      Object.entries({ _i, _in, _out, _fc, _p }).map(([name, ref]) => [
-        name,
-        Object.fromEntries(
-          [...range(n_max)].map((n) => [
-            n,
-            result.columns.get(ref.get({ n })) ?? 0,
-          ]),
-        ),
-      ]),
-    ),
-    ...Object.fromEntries(
-      Object.entries({ _r, _c }).map(([name, ref]) => [
-        name,
-        Object.fromEntries(
-          [...range(k_max)].map((k) => [
-            k,
-            result.columns.get(ref.get({ k })) ?? 0,
-          ]),
-        ),
-      ]),
-    ),
-  } as {
-    _c: Record<number, number>;
-    _in: Record<number, number>;
-    _fc: Record<number, number>;
-    _out: Record<number, number>;
-    _r: Record<number, number>;
-    _i: Record<number, number>;
-    _p: Record<number, number>;
-  };
-
-  const ref = <T extends Record<string, number>>(
-    vars: Variables<T>,
-    indices: T,
-  ) => result.columns.get(vars.get(indices)) ?? 0;
-
-  return {
-    objective: result.objective,
-    problem: result.problem,
-    status: "Optimal",
-    vars,
-    items: [...range(n_max)]
-      .map((n) => {
-        const id = resource_ids[n];
-        return {
-          index: n,
-          id,
-          name: resource_list[id].name,
-          input: ref(_in, { n }),
-          output: ref(_out, { n }),
-          cost: ref(_fc, { n }),
-          profit: ref(_p, { n }),
-          balance: ref(_i, { n }),
-        };
-      })
-      .filter(({ input, output, cost }) => input + output + cost >= 1e-6)
-      .toSorted((a, b) => b.output - a.output),
-    recipes: [...range(k_max)]
-      .map((k) => {
-        return {
-          k,
-          recipe: recipes[k],
-          count: ref(_c, { k }),
-          ratio: ref(_r, { k }),
-        };
-      })
-      .filter(({ ratio }) => ratio >= 1e-6)
-      .toSorted((a, b) => b.ratio - a.ratio)
-      .map(({ k, count, ratio, recipe }) => {
-        const parse = (q: Quantities) =>
-          (
-            Object.entries(q) as [
-              keyof Quantities,
-              Quantities[keyof Quantities],
-            ][]
-          ).map(([id, volume]) => ({
-            id,
-            name: resource_list[id].name,
-            volume: volume ?? 0,
-          }));
-        return {
-          count,
-          ratio: ratio / count,
-          index: k,
-          input: parse(recipe.input),
-          output: parse(recipe.output),
-          cost: parse(recipe.fixed_costs),
-          machine: {
-            id: recipe.machine,
-            name: machine_list[recipe.machine].name,
-          },
-        };
-      }),
-  };
+  throw new Error("Unknown error.");
 }

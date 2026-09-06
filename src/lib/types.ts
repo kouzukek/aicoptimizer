@@ -24,61 +24,96 @@ export type SolverRequest = z.infer<typeof SolverRequestSchema>;
 export const SolverResponseSchema = z.union([
   z.object({
     status: z.literal("Optimal"),
-    problem: z.string(),
-    objective: z.number(),
-    vars: z.object({
-      _c: z.record(z.number(), z.number()),
-      _fc: z.record(z.number(), z.number()),
-      _i: z.record(z.number(), z.number()),
-      _in: z.record(z.number(), z.number()),
-      _out: z.record(z.number(), z.number()),
-      _p: z.record(z.number(), z.number()),
-      _r: z.record(z.number(), z.number()),
+    profits: z.object({
+      items: z.array(
+        z.object({
+          id: z.literal(resource_ids),
+          name: z.string(),
+          count: z.number(),
+          profit: z.number(),
+        }),
+      ),
+      totalProfit: z.number(),
     }),
-    items: z.array(
+    balance: z.array(
       z.object({
-        index: z.number(),
-        id: z.literal(resource_ids),
-        name: z.string(),
-        input: z.number(),
-        output: z.number(),
-        cost: z.number(),
-        profit: z.number(),
-        balance: z.number(),
+        zone_id: z.number(),
+        zone: z.string(),
+        items: z.array(
+          z.object({
+            id: z.literal(resource_ids),
+            name: z.string(),
+            output: z.number(),
+            input: z.number(),
+            balance: z.number(),
+          }),
+        ),
       }),
     ),
-    recipes: z.array(
-      z.object({
-        index: z.number(),
-        count: z.number(),
-        ratio: z.number(),
-        input: z.array(
-          z.object({
-            id: z.literal(resource_ids),
-            name: z.string(),
-            volume: z.number(),
-          }),
-        ),
-        output: z.array(
-          z.object({
-            id: z.literal(resource_ids),
-            name: z.string(),
-            volume: z.number(),
-          }),
-        ),
-        cost: z.array(
-          z.object({
-            id: z.literal(resource_ids),
-            name: z.string(),
-            volume: z.number(),
-          }),
-        ),
-        machine: z.object({
+    power: z.object({
+      machines: z.array(
+        z.object({
           id: z.literal(machine_ids),
           name: z.string(),
+          count: z.number(),
+          ratio: z.number(),
+          output: z.number(),
+          input: z.number(),
         }),
+      ),
+      total: z.object({ output: z.number(), input: z.number() }),
+    }),
+    operation: z.array(
+      z.object({
+        zone_id: z.number(),
+        zone: z.string(),
+        recipes: z.array(
+          z.object({
+            machine: z.string(),
+            input: z.array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                volume: z.number(),
+              }),
+            ),
+            costs: z.array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                volume: z.number(),
+              }),
+            ),
+            output: z.array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                volume: z.number(),
+              }),
+            ),
+            count: z.number(),
+            ratio: z.number(),
+          }),
+        ),
       }),
     ),
+    flow: z.object({
+      nodes: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          kind: z.string(),
+          parent: z.string().optional(),
+        }),
+      ),
+      edges: z.array(
+        z.object({
+          source: z.string(),
+          target: z.string(),
+          kind: z.string(),
+        }),
+      ),
+    }),
   }),
   z.object({
     status: z.literal("Unoptimized"),

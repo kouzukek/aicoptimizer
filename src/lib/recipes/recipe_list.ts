@@ -1,4 +1,71 @@
+import { type ResourceId } from "./resources";
 import type { Recipe } from "./types";
+
+const bottle_fill_separate = <B extends ResourceId, F extends ResourceId>(
+  bottle: B,
+  fluid: F,
+): Recipe[] => [
+  {
+    input: { [bottle]: 1, [fluid]: 1 },
+    output: { [`${bottle} (${fluid})` as ResourceId]: 1 },
+    duration: 2,
+    machine: "Filling Unit",
+  },
+  {
+    input: { [`${bottle} (${fluid})`]: 1 },
+    output: { [bottle]: 1, [fluid]: 1 },
+    duration: 2,
+    machine: "Separating Unit",
+  },
+];
+
+type FluidOf<T> = T extends `${string} (${infer G})` ? G : never;
+type Fillable<B extends ResourceId> = FluidOf<
+  Extract<ResourceId, `${B} (${string})`>
+>;
+const bottles = [
+  "Amethyst Bottle",
+  "Ferrium Bottle",
+  "Cryston Bottle",
+  "Steel Bottle",
+  "Cuprium Bottle",
+  "Hetonite Bottle",
+] as const satisfies ResourceId[];
+const liquids = [
+  "Clean Water",
+  "Precipitation Acid",
+  "Sewage",
+  "Jincao Solution",
+  "Yazhen Solution",
+  "Liquid Xiranite",
+  "Liquid Heavy Xiranite",
+  "Xircon Effluent",
+  "Inert Xircon Effluent",
+  "Cuprium Solution",
+  "Hetonite Solution",
+] as const satisfies Fillable<(typeof bottles)[number]>[];
+const canisters = ["Cuprium Canister"] as const satisfies ResourceId[];
+const gasses = [
+  "Aquagen",
+  "Acridgen",
+  "Xiragen",
+  "Heavy Xiragen",
+  "Inergen",
+  "Cuprium Gas",
+  "Hetonite Gas",
+  "Pyrrolite Gas",
+] as const satisfies Fillable<(typeof canisters)[number]>[];
+
+const liquid_recipes = bottles
+  .map((bottle) =>
+    liquids.map((liquid) => bottle_fill_separate(bottle, liquid)).flat(),
+  )
+  .flat();
+const gas_recipes = canisters
+  .map((canister) =>
+    gasses.map((gas) => bottle_fill_separate(canister, gas)).flat(),
+  )
+  .flat();
 
 export const recipe_list: Recipe[] = [
   {
@@ -765,24 +832,6 @@ export const recipe_list: Recipe[] = [
   },
 
   {
-    input: { "Ferrium Bottle": 1, "Yazhen Solution": 1 },
-    output: { "Ferrium Bottle (Yazhen Solution)": 1 },
-    duration: 2,
-    machine: "Filling Unit",
-  },
-  {
-    input: { "Cuprium Bottle": 1, "Yazhen Solution": 1 },
-    output: { "Cuprium Bottle (Yazhen Solution)": 1 },
-    duration: 2,
-    machine: "Filling Unit",
-  },
-  {
-    input: { "Ferrium Bottle": 1, "Jincao Solution": 1 },
-    output: { "Ferrium Bottle (Jincao Solution)": 1 },
-    duration: 2,
-    machine: "Filling Unit",
-  },
-  {
     input: { "Cuprium Bottle": 1, "Jincao Solution": 1 },
     output: { "Cuprium Bottle (Jincao Solution)": 1 },
     duration: 2,
@@ -824,6 +873,9 @@ export const recipe_list: Recipe[] = [
     duration: 10,
     machine: "Filling Unit",
   },
+
+  ...liquid_recipes,
+  ...gas_recipes,
 
   {
     input: { "Carbon": 1, "Clean Water": 1 },
