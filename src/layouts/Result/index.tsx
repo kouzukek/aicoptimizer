@@ -257,7 +257,7 @@ const GraphArea = () => {
   return (
     <div className={styles.grapharea}>
       <Graph
-        recipes={
+        active_recipes={
           result.status === "Optimal"
             ? result.recipes.map(({ index }) => index)
             : []

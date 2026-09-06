@@ -2,7 +2,7 @@
   "plugins": ["@prettier/plugin-xml"],
   "overrides": [
     {
-      "files": ["src/lib/recipes.ts", "src/lib/mines.ts"],
+      "files": ["src/lib/recipes/*", "src/lib/mines.ts"],
       "options": { "quoteProps": "consistent" }
     }
   ]

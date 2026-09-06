@@ -1,4 +1,6 @@
-import { type AreaId, type ResourceId, type Recipe } from "./recipes";
+import type { AreaId } from "./areas";
+import type { Recipe } from "./types";
+import type { ResourceId } from "./resources";
 
 export type MineTemplates = {
   [A in AreaId]: {

@@ -5,16 +5,12 @@ import cola from "cytoscape-cola";
 // @ts-ignore
 import fcose from "cytoscape-fcose";
 
-import {
-  resource_list,
-  machine_list,
-  normalized_recipe_list,
-} from "../../lib/recipes";
+import { resource_list, machine_list, recipes } from "../../lib/recipes";
 
 cytoscape.use(cola);
 cytoscape.use(fcose);
 
-export const Graph: FC<{ recipes: number[] }> = ({ recipes }) => {
+export const Graph: FC<{ active_recipes: number[] }> = ({ active_recipes }) => {
   const ref = useRef<HTMLDivElement>(null);
   const cy = useRef<cytoscape.Core | null>(null);
 
@@ -70,9 +66,9 @@ export const Graph: FC<{ recipes: number[] }> = ({ recipes }) => {
     const _cy = cy.current;
     if (!_cy) return;
 
-    for (const i of recipes) {
+    for (const i of active_recipes) {
       const recipe = `recipe-${i}`;
-      const r = normalized_recipe_list["recipes"][i];
+      const r = recipes[i];
 
       _cy.add({
         data: { id: recipe, name: machine_list[r.machine].name },
@@ -139,7 +135,7 @@ export const Graph: FC<{ recipes: number[] }> = ({ recipes }) => {
     _cy.fit();
 
     return () => _cy.destroy();
-  }, [recipes]);
+  }, [active_recipes]);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver(() => {

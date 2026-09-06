@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { Menu } from "@base-ui/react/menu";
 
 import { additionalRequirementsAtom } from "../../lib/store";
-import { resource_group, resource_list, type Group } from "../../lib/recipes";
+import { resource_group, resource_list } from "../../lib/recipes";
 import type { SolverRequest } from "../../lib/types";
 
 import {
@@ -22,8 +22,9 @@ const ResourceSelector: FC<{ target: Target }> = ({ target }) => {
   const [_reqs, setter] = useAtom(additionalRequirementsAtom);
   const reqs = _reqs[target] ?? [];
 
-  const [path, setPath] = useState<Group[string]>(resource_group);
-  const [parent, setParent] = useState<Group[]>([]);
+  type ResourceGroup = typeof resource_group;
+  const [path, setPath] = useState<ResourceGroup[string]>(resource_group);
+  const [parent, setParent] = useState<ResourceGroup[]>([]);
 
   return (
     <Menu.Root

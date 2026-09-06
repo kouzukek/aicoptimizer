@@ -2,7 +2,8 @@ import Highs, { type Model } from "highs";
 
 import {
   machine_list,
-  normalized_recipe_list,
+  recipes,
+  limit_groups,
   price_list,
   resource_ids,
   resource_list,
@@ -338,10 +339,8 @@ export async function solve({
 }: SolverRequest): Promise<SolverResponse> {
   const solver = new Solver();
 
-  const { recipes: recipe_list, groups: limit_groups } = normalized_recipe_list;
-
   const n_max = resource_ids.length;
-  const k_max = recipe_list.length;
+  const k_max = recipes.length;
 
   const _i = solver.createVars("i", { n: n_max });
   const _in = solver.createVars("_in", { n: n_max });
@@ -386,7 +385,7 @@ export async function solve({
       [
         [1, _out.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          -1 * (recipe_list[k].output[id] ?? 0),
+          -1 * (recipes[k].output[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -397,7 +396,7 @@ export async function solve({
       [
         [1, _in.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          -1 * (recipe_list[k].input[id] ?? 0),
+          -1 * (recipes[k].input[id] ?? 0),
           _r.get({ k }),
         ]),
       ],
@@ -408,7 +407,7 @@ export async function solve({
       [
         [1, _fc.get({ n })],
         ...[...range(k_max)].map((k): Term => [
-          -1 * (recipe_list[k].fixed_costs[id] ?? 0),
+          -1 * (recipes[k].fixed_costs[id] ?? 0),
           _c.get({ k }),
         ]),
       ],
@@ -442,7 +441,7 @@ export async function solve({
   {
     const terms: Term[] = [];
     for (const k of range(k_max)) {
-      const raw = recipe_list[k].origin;
+      const raw = recipes[k].origin;
       if (raw.machine === "Thermal Bank") {
         const e = raw.output["Power"] ?? 0;
         terms.push([e, _c.get({ k })], [-e, _r.get({ k })]);
@@ -457,7 +456,7 @@ export async function solve({
     if (limit !== "inf")
       solver.addConstraint(
         [...range(k_max)].map((k) => [
-          recipe_list[k].groups.includes(name) ? 1 : 0,
+          recipes[k].groups.includes(name) ? 1 : 0,
           _c.get({ k }),
         ]),
         "<=",
@@ -549,7 +548,7 @@ export async function solve({
       .map((k) => {
         return {
           k,
-          recipe: recipe_list[k],
+          recipe: recipes[k],
           count: ref(_c, { k }),
           ratio: ref(_r, { k }),
         };
