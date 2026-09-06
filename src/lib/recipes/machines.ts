@@ -93,6 +93,7 @@ const _machine_list = {
     name: "充填機",
     power_use: 20,
   },
+  "Separating Unit": { name: "解体機", power_use: 20 },
   "Forge of the Sky": {
     name: "天有洪炉",
     power_use: 50,

@@ -5,21 +5,33 @@ import cola from "cytoscape-cola";
 // @ts-ignore
 import fcose from "cytoscape-fcose";
 
-import { resource_list, machine_list, recipes } from "../../lib/recipes";
-
 cytoscape.use(cola);
 cytoscape.use(fcose);
 
-export const Graph: FC<{ active_recipes: number[] }> = ({ active_recipes }) => {
+export const Graph: FC<{
+  nodes: { id: string; name: string; parent?: string; kind: string }[];
+  edges: { source: string; target: string; kind: string }[];
+}> = ({ nodes, edges }) => {
   const ref = useRef<HTMLDivElement>(null);
   const cy = useRef<cytoscape.Core | null>(null);
+
+  console.log({ nodes, edges });
 
   useEffect(() => {
     if (!ref.current) return;
 
     cy.current = cytoscape({
       container: ref.current,
-
+      elements: [
+        ...nodes.map((node) => ({
+          data: { id: node.id, name: node.name, parent: node.parent },
+          classes: [node.kind],
+        })),
+        ...edges.map((edge) => ({
+          data: { source: edge.source, target: edge.target },
+          classes: [edge.kind],
+        })),
+      ],
       style: [
         {
           selector: "node",
@@ -66,53 +78,11 @@ export const Graph: FC<{ active_recipes: number[] }> = ({ active_recipes }) => {
     const _cy = cy.current;
     if (!_cy) return;
 
-    for (const i of active_recipes) {
-      const recipe = `recipe-${i}`;
-      const r = recipes[i];
-
-      _cy.add({
-        data: { id: recipe, name: machine_list[r.machine].name },
-        classes: ["machine"],
-      });
-
-      const key_guard = (key: string): key is keyof typeof resource_list => {
-        return key in resource_list;
-      };
-      const addResource = (key: string) => {
-        if (!_cy.hasElementWithId(key)) {
-          if (key_guard(key))
-            _cy.add({
-              data: { id: key, name: resource_list[key].name },
-              classes: ["resource"],
-            });
-        }
-      };
-
-      for (const src of Object.keys(r.input)) {
-        addResource(src);
-        _cy.add({ data: { source: src, target: recipe }, classes: ["input"] });
-      }
-
-      for (const dst of Object.keys(r.output)) {
-        addResource(dst);
-        _cy.add({ data: { source: recipe, target: dst }, classes: ["output"] });
-      }
-
-      for (const src of Object.keys(r.fixed_costs)) {
-        if (src !== "Power") {
-          addResource(src);
-          _cy.add({
-            data: { source: src, target: recipe },
-            classes: ["costs"],
-          });
-        }
-      }
-    }
-
+    /*
     _cy
       .nodes()
       .filter((n) => n.degree(false) === 0)
-      .style("display", "none");
+      .style("display", "none");*/
     _cy
       .layout({
         name: "fcose",
@@ -127,7 +97,7 @@ export const Graph: FC<{ active_recipes: number[] }> = ({ active_recipes }) => {
         name: "cola",
         animate: true,
         randomize: false,
-        maxSimulationTime: 2000,
+        maxSimulationTime: 20000,
         avoidOverlap: true,
       } as any)
       .run();
@@ -135,7 +105,7 @@ export const Graph: FC<{ active_recipes: number[] }> = ({ active_recipes }) => {
     _cy.fit();
 
     return () => _cy.destroy();
-  }, [active_recipes]);
+  }, [nodes, edges]);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver(() => {

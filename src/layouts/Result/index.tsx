@@ -1,17 +1,16 @@
+import { Fragment } from "react";
 import { useAtomValue } from "jotai";
 
-import { additionalRequirementsAtom, resultAtom } from "../../lib/store";
+import { resultAtom } from "../../lib/store";
 import { format } from "../../lib/utils";
 
+import { TabsPanel } from "../../components/tabs";
 import { Graph } from "../Graph";
 
 import styles from "./styles.module.scss";
-import { TabsPanel } from "../../components/tabs";
 
 const Profits = () => {
   const result = useAtomValue(resultAtom);
-  const requirements =
-    useAtomValue(additionalRequirementsAtom)["balance"] ?? [];
   const succeed = result.status === "Optimal";
 
   return (
@@ -27,23 +26,16 @@ const Profits = () => {
       {succeed && (
         <>
           <tbody>
-            {result.items
-              .filter(
-                ({ id, profit, balance }) =>
-                  profit >= 1e-6 ||
-                  (balance >= 1e-6 && requirements.some(([rid]) => rid === id)),
-              )
-              .toSorted((a, b) => b.profit - a.profit)
-              .map(({ id, name, balance, profit }) => (
-                <tr key={id}>
-                  <td>{name}</td>
-                  <td data-type="volume">{format(balance, 1)}</td>
-                  <td data-type="price">
-                    {format(profit >= 1e-6 ? profit / balance : 0)}
-                  </td>
-                  <td data-type="money">{format(profit, 1)}</td>
-                </tr>
-              ))}
+            {result.profits?.items.map(({ id, name, count, profit }) => (
+              <tr key={id}>
+                <td>{name}</td>
+                <td data-type="volume">{format(count, 1)}</td>
+                <td data-type="price">
+                  {format(profit >= 1e-6 ? profit / count : 0)}
+                </td>
+                <td data-type="money">{format(profit, 1)}</td>
+              </tr>
+            ))}
           </tbody>
           <tfoot>
             <tr>
@@ -51,11 +43,7 @@ const Profits = () => {
               <th />
               <th />
               <th data-type="money">
-                Σ{" "}
-                {format(
-                  result.items.reduce((acc, cur) => acc + cur.profit, 0),
-                  1,
-                )}
+                Σ {format(result.profits?.totalProfit ?? 0, 1)}
               </th>
             </tr>
           </tfoot>
@@ -81,17 +69,21 @@ const Balances = () => {
       </thead>
       {succeed && (
         <tbody>
-          {result.items
-            .toSorted((a, b) => b.output - a.output)
-            .filter(({ id }) => id !== "Power")
-            .map(({ id, name, output, input, cost, balance }) => (
-              <tr key={id}>
-                <td>{name}</td>
-                <td data-type="volume">{format(output, 1)}</td>
-                <td data-type="volume">{format(input + cost, 1)}</td>
-                <td data-type="volume">{format(balance, 1)}</td>
+          {result.balance?.map(({ zone, zone_id, items }) => (
+            <Fragment key={`zone-${zone_id}`}>
+              <tr>
+                <th colSpan={4}>{zone}</th>
               </tr>
-            ))}
+              {items.map(({ id, name, output, input, balance }) => (
+                <tr key={`item-${id}`}>
+                  <td>{name}</td>
+                  <td data-type="volume">{format(output, 1)}</td>
+                  <td data-type="volume">{format(input, 1)}</td>
+                  <td data-type="volume">{format(balance, 1)}</td>
+                </tr>
+              ))}
+            </Fragment>
+          ))}
         </tbody>
       )}
     </table>
@@ -101,44 +93,6 @@ const Balances = () => {
 const PowerConsumption = () => {
   const result = useAtomValue(resultAtom);
   const succeed = result.status === "Optimal";
-
-  const agg = succeed
-    ? [
-        ...result.recipes.reduce((acc, cur) => {
-          const prev = acc.get(cur.machine.id) ?? {
-            name: cur.machine.name,
-            count: 0,
-            ratio: 0,
-            output: 0,
-            input: 0,
-          };
-
-          const get = (key: "output" | "input" | "cost") =>
-            cur[key].find(({ id }) => id === "Power")?.volume ?? 0;
-          acc.set(cur.machine.id, {
-            name: prev.name,
-            count: prev.count + cur.count,
-            ratio: prev.ratio + cur.count * cur.ratio,
-            output: prev.output + get("output") * cur.count * cur.ratio,
-            input:
-              prev.input +
-              get("input") * cur.count * cur.ratio +
-              get("cost") * cur.count,
-          });
-
-          return acc;
-        }, new Map<string, { name: string; count: number; ratio: number; output: number; input: number }>()),
-      ]
-    : undefined;
-
-  const { output: totalOutput, input: totalInput } =
-    agg?.reduce(
-      ({ output, input }, cur) => ({
-        output: output + cur[1].output,
-        input: input + cur[1].input,
-      }),
-      { output: 0, input: 0 },
-    ) ?? {};
 
   return (
     <table aria-label="Power Balances">
@@ -151,31 +105,29 @@ const PowerConsumption = () => {
           <th scope="col">入力</th>
         </tr>
       </thead>
-      {agg && (
+      {succeed && (
         <>
           <tbody>
-            {agg
-              .toSorted(
-                (a, b) => b[1].output - b[1].input - (a[1].output - a[1].input),
-              )
-              .map(([id, { name, count, ratio, output, input }]) => (
+            {result.power?.machines.map(
+              ({ id, name, count, ratio, output, input }) => (
                 <tr key={id}>
                   <td>{name}</td>
                   <td data-type="count">{format(count)}</td>
-                  <td data-type="ratio">{format((ratio / count) * 100)}</td>
+                  <td data-type="ratio">{format(ratio * 100)}</td>
                   <td data-type="volume">{format(output)}</td>
                   <td data-type="volume">{format(input)}</td>
                 </tr>
-              ))}
+              ),
+            )}
           </tbody>
           <tfoot>
             <tr>
               <th colSpan={3}></th>
               <th scope="col" data-type="volume">
-                {format(totalOutput!)}
+                {format(result.power?.total.output ?? 0)}
               </th>
               <th scope="col" data-type="volume">
-                {format(totalInput!)}
+                {format(result.power?.total.input ?? 0)}
               </th>
             </tr>
           </tfoot>
@@ -202,49 +154,48 @@ const RecipeOperationRatio = () => {
       </thead>
       {succeed && (
         <tbody>
-          {result.recipes.map(
-            ({ index, machine, input, output, cost, count, ratio }) => (
-              <tr key={index}>
-                <td>{machine.name}</td>
-                <td>
-                  <div className={styles.recipe_resources_stack}>
-                    {input
-                      .toSorted((a, b) => b.volume - a.volume)
-                      .filter(({ id }) => id !== "Power")
-                      .map(({ id, name, volume }) => (
-                        <div key={`input-${id}`}>
-                          <div>{name}</div>
-                          <div data-type="volume">{format(volume, 0, 1)}</div>
-                        </div>
-                      ))}
-                    {cost
-                      .toSorted((a, b) => b.volume - a.volume)
-                      .filter(({ id }) => id !== "Power")
-                      .map(({ id, name, volume }) => (
-                        <div key={`cost-${id}`}>
-                          <div>{name}</div>
-                          <div data-type="volume">{format(volume, 0, 1)}</div>
-                        </div>
-                      ))}
-                  </div>
-                </td>
-                <td>
-                  <div className={styles.recipe_resources_stack}>
-                    {output
-                      .toSorted((a, b) => b.volume - a.volume)
-                      .map(({ id, name, volume }) => (
-                        <div key={`output-${id}`}>
-                          <div>{name}</div>
-                          <div data-type="volume">{format(volume, 0, 1)}</div>
-                        </div>
-                      ))}
-                  </div>
-                </td>
-                <td data-type="count">{format(count)}</td>
-                <td data-type="ratio">{format(ratio * 100, 1)}</td>
+          {result.operation?.map(({ zone_id, zone, recipes }) => (
+            <Fragment key={`zone-${zone_id}`}>
+              <tr>
+                <th colSpan={5}>{zone}</th>
               </tr>
-            ),
-          )}
+              {recipes.map(
+                ({ machine, input, costs, output, count, ratio }, i) => (
+                  <tr key={`zone-${zone_id} recipe-${i}`}>
+                    <td>{machine}</td>
+                    <td>
+                      <div className={styles.recipe_resources_stack}>
+                        {input.map(({ id, name, volume }) => (
+                          <div key={`input-${id}`}>
+                            <div>{name}</div>
+                            <div data-type="volume">{format(volume, 0, 1)}</div>
+                          </div>
+                        ))}
+                        {costs.map(({ id, name, volume }) => (
+                          <div key={`costs-${id}`}>
+                            <div>{name}</div>
+                            <div data-type="volume">{format(volume, 0, 1)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.recipe_resources_stack}>
+                        {output.map(({ id, name, volume }) => (
+                          <div key={`output-${id}`}>
+                            <div>{name}</div>
+                            <div data-type="volume">{format(volume, 0, 1)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td data-type="count">{format(count)}</td>
+                    <td data-type="ratio">{format(ratio * 100)}</td>
+                  </tr>
+                ),
+              )}
+            </Fragment>
+          ))}
         </tbody>
       )}
     </table>
@@ -255,15 +206,11 @@ const GraphArea = () => {
   const result = useAtomValue(resultAtom);
 
   return (
-    <div className={styles.grapharea}>
-      <Graph
-        active_recipes={
-          result.status === "Optimal"
-            ? result.recipes.map(({ index }) => index)
-            : []
-        }
-      />
-    </div>
+    result.status === "Optimal" && (
+      <div className={styles.grapharea}>
+        <Graph nodes={result.flow.nodes} edges={result.flow.edges} />
+      </div>
+    )
   );
 };
 
