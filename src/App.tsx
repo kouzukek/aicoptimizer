@@ -13,6 +13,7 @@ import { FaGears, FaGithub } from "react-icons/fa6";
 import styles from "./App.module.scss";
 
 const CHANGELOG = [
+  `v0.2.2 Append "AIC Support: Chubby Lung Attacks" recipes.`,
   `v0.2.0 Append "Snowy Forest" mining spots. Append "Water Purifier" recipes.`,
   `v0.1.0 First Release`,
 ];
