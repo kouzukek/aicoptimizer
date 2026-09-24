@@ -1,92 +1,20 @@
-import type { Recipe } from "./types";
+import type { Recipe } from "../types";
+
+import { recipes as gears_recipes } from "./gears";
+import { recipes as generator_recipes } from "./generator";
+import { recipes as plants_recipes } from "./plants";
+import { recipes as pump_recipes } from "./pumps";
+
+import { recipes as event_260916 } from "./event_260916";
 
 export const recipe_list: Recipe[] = [
-  {
-    input: {},
-    output: { "Clean Water": 1 },
-    duration: 1,
-    limit: { Wuling: "inf", Valley: 0 },
-    machine: "Fluid Pump",
-  },
-  {
-    input: {},
-    output: { "Precipitation Acid": 1 },
-    duration: 2,
-    limit: { Wuling: "inf", Valley: 0 },
-    machine: "Acid Resistant Pump Mk II",
-  },
-  {
-    input: { "Buckflower Seed": 1 },
-    output: { Buckflower: 1 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { "Citrome Seed": 1 },
-    output: { Citrome: 1 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { "Aketine Seed": 1 },
-    output: { Aketine: 1 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { "Sandleaf Seed": 1 },
-    output: { Sandleaf: 1 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { "Yazhen Seed": 1, "Clean Water": 1 },
-    output: { Yazhen: 2 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { "Jincao Seed": 1, "Clean Water": 1 },
-    output: { Jincao: 2 },
-    duration: 2,
-    machine: "Planting Unit",
-  },
-  {
-    input: { Buckflower: 1 },
-    output: { "Buckflower Seed": 2 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
-  {
-    input: { Citrome: 1 },
-    output: { "Citrome Seed": 2 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
-  {
-    input: { Sandleaf: 1 },
-    output: { "Sandleaf Seed": 2 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
-  {
-    input: { Aketine: 1 },
-    output: { "Aketine Seed": 2 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
-  {
-    input: { Yazhen: 1 },
-    output: { "Yazhen Seed": 1 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
-  {
-    input: { Jincao: 1 },
-    output: { "Jincao Seed": 1 },
-    duration: 2,
-    machine: "Seed-Picking Unit",
-  },
+  ...gears_recipes,
+  ...generator_recipes,
+  ...plants_recipes,
+  ...pump_recipes,
+
+  ...event_260916,
+
   {
     input: { Ferrium: 1 },
     output: { "Ferrium Part": 1 },
@@ -856,91 +784,5 @@ export const recipe_list: Recipe[] = [
     output: { "Xircon Effluent": 1 },
     duration: 15,
     machine: "Water Purifier",
-  },
-
-  {
-    input: { "Originium Ore": 1 },
-    output: { Power: 50 * 8 },
-    duration: 8,
-    machine: "Thermal Bank",
-  },
-  {
-    input: { "LC Valley Battery": 1 },
-    output: { Power: 220 * 40 },
-    duration: 40,
-    machine: "Thermal Bank",
-  },
-  {
-    input: { "SC Valley Battery": 1 },
-    output: { Power: 420 * 40 },
-    duration: 40,
-    machine: "Thermal Bank",
-  },
-  {
-    input: { "HC Valley Battery": 1 },
-    output: { Power: 1100 * 40 },
-    duration: 40,
-    machine: "Thermal Bank",
-  },
-  {
-    input: { "LC Wuling Battery": 1 },
-    output: { Power: 1600 * 40 },
-    duration: 40,
-    machine: "Thermal Bank",
-  },
-  {
-    input: { "SC Wuling Battery": 1 },
-    output: { Power: 3200 * 40 },
-    duration: 40,
-    machine: "Thermal Bank",
-  },
-  {
-    input: {},
-    output: { Power: 200 },
-    duration: 1,
-    machine: "Protocol Automation-Core",
-  },
-
-  {
-    input: { "Origocrust": 5, "Amethyst Fiber": 5 },
-    output: { "Amethyst Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { Origocrust: 10, Ferrium: 10 },
-    output: { "Ferrium Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { "Packed Origocrust": 10, "Cryston Fiber": 10 },
-    output: { "Cryston Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { "Hetonite Part": 2, "Heavy Xiranite": 2 },
-    output: { "Hetonite Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { "Packed Origocrust": 10, "Xiranite": 10 },
-    output: { "Xiranite Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { "Cuprium Part": 10, "Xiranite": 10 },
-    output: { "Cuprium Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
-  },
-  {
-    input: { "Heavy Xiranite": 2, "Pyrrolite Part": 1 },
-    output: { "Pyrrolite Component": 1 },
-    duration: 10,
-    machine: "Gearing Unit",
   },
 ];
