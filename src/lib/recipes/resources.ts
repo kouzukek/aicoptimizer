@@ -110,6 +110,18 @@ export const resource_list = {
   "Yazhen Syringe [A]": { name: "芽針注射剤Ⅱ" },
   "Yazhen Syringe [C]": { name: "芽針注射剤Ⅰ" },
   "Yazhen": { name: "芽針" },
+
+  "Xiranite Chubby Lung": { name: "息壌龍泡泡" },
+  "Proto Chubby Lung Shell": { name: "実験用龍泡泡シェル" },
+  "Proto Xiranite": { name: "実験用息壌ブロック" },
+  "Proto Cuprium Frame": { name: "実験用銅フレーム" },
+  "Proto Xiran-Cuprium Gas": { name: "実験用息壌銅ガス" },
+  "Proto Chubby Lung Heavy Shell": { name: "実験用龍泡泡ヘビーシェル" },
+  "Heavy Xiranite Chubby Lung": { name: "重息壌龍泡泡" },
+  "Proto Xiran-Cuprium Frame": { name: "実験用息壌銅フレーム" },
+  "Proto Xiran-Cuprium Part": { name: "実験用息壌銅部品" },
+  "Proto Xiran-Cuprium": { name: "実験用息壌銅塊" },
+  "Proto Heavy Xiranite": { name: "実験用重息壌ブロック" },
 } as const satisfies Record<
   string,
   { name: string; prevent_overflow?: boolean }

@@ -15,6 +15,8 @@ export const price_list: Record<AreaId, { [key in ResourceId]?: number }> = {
     "Hetonite Part": 48,
     "Pyrrolite Part": 70,
     "Separator Core": 1,
+    "Xiranite Chubby Lung": 100,
+    "Heavy Xiranite Chubby Lung": 200,
   },
   Valley: {
     "LC Valley Battery": 16,
